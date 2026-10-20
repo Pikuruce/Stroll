@@ -1,0 +1,18 @@
+window:
+  width: 192
+  height: 108
+  fullscreen: false
+
+audio:
+  master_volume: 0.8
+  bgm_volume: 0.5
+  se_volume: 1.0
+
+system:
+  debug_mode: false
+
+assets:
+  - characters/
+  - images/
+  - objects/
+  - sounds/
