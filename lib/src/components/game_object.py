@@ -12,6 +12,9 @@ from direct.showbase.ShowBase import ShowBase
 import lib.utils.asset_path as path
 import lib.src.components.sprite_animator as sprani
 import lib.src.components.collider as col
+import math
+from panda3d.core import SamplerState
+from panda3d.core import CardMaker, TextureStage, TransparencyAttrib
 
 
 class GameObject:
@@ -37,6 +40,7 @@ class GameObject:
 
         self.loader = loader
         self.name = name
+        self.is_3d = is_3d
 
         self.shadow = None
         if is_3d:
@@ -57,7 +61,10 @@ class GameObject:
             model, name, json_data, is_3d
         )
 
+        self.sprite_animator.play(direction="front", motion="idle", loop=True)
+
         self.collider = None
+        self.camera = None
 
     def createCollider(self, collision_type: str, debug: bool, sphere_size: tuple = (0, 0, 0.5, 0.45), box_size: tuple = (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),) -> None:
         self.collider = col.Collider(
@@ -148,6 +155,14 @@ class GameObject:
         shadow_card_maker = CardMaker("Furvival_Shadow")
         shadow_card_maker.setFrame(-0.5, 0.5, 0.0, 1.0)
 
+        # ドット絵の輪郭をぼかさない
+        image.setMinfilter(SamplerState.FT_nearest)
+        image.setMagfilter(SamplerState.FT_nearest)
+        image.setAnisotropicDegree(1)
+        shadow_image.setMinfilter(SamplerState.FT_nearest)
+        shadow_image.setMagfilter(SamplerState.FT_nearest)
+        shadow_image.setAnisotropicDegree(1)
+
         # 親ノードへの登録は、呼び出し元で行う
         card = NodePath(card_maker.generate())
         card.setTexture(image)
@@ -158,8 +173,26 @@ class GameObject:
         shadow_card.setP(-90)
         shadow_card.setScale(0.6, 0.6, 0.6)
         shadow_card.setTransparency(TransparencyAttrib.MAlpha)
+        
 
         return card, shadow_card, json_data
+
+    def faceCamera(self) -> None:
+        if self.camera is None:
+            return
+
+        # カメラとキャラクターのワールド座標
+        camera_pos = self.camera.getPos(self.node.getParent())
+        character_pos = self.node.getPos(self.node.getParent())
+
+        dx = camera_pos.x - character_pos.x
+        dy = camera_pos.y - character_pos.y
+
+        # 水平方向の角度を計算
+        heading = math.degrees(math.atan2(dx, -dy))
+
+        # モデルだけ回転させる（コリジョンは回転しない）
+        self.model.setH(heading)
 
     def setPos(self, x, y, z) -> None:
         self.node.setPos(x, y, z)
@@ -179,3 +212,6 @@ class GameObject:
     def update(self, dt: float) -> None:
         if hasattr(self, "sprite_animator"):
             self.sprite_animator.update(dt)
+
+        if not self.is_3d and self.camera is not None:
+            self.faceCamera()

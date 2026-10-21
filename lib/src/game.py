@@ -68,11 +68,6 @@ class cgprogram(ShowBase):
         self.foreground1.reparentTo(fgnp)
         self.foreground1.setTransparency(True)
 
-        #self.foreground2=OnscreenImage(path.image_path('Furvival_Foreground2.png'),scale=(0.66,1,1))#1
-        #self.foreground2.reparentTo(fgnp)#1
-        #self.foreground2.setTransparency(True)#2
-        #self.foreground2.hide()#3
-
         light1=AmbientLight('light1')
         light1.setColor((0.5,0.5,0.5,1))
         light1=self.render.attachNewNode(light1)
@@ -98,6 +93,11 @@ class cgprogram(ShowBase):
         #床
         self.gameObjects.extend(self.plane(offset=(0, -4, 0), name="Grass", point1=(0, 0, 0), point2=(8, 10, 2)))
         self.gameObjects.extend(self.plane(offset=(20, -4, 0), name="Grass", point1=(0, 0, 0), point2=(8, 10, 2)))
+
+        flower = go.GameObject(self.render, self.loader, "Dance_Flower", False)
+        flower.setPos(1, 0, 1)
+        flower.camera = self.cam
+        self.gameObjects.append(flower)
         #壁
         self.gameObjects.extend(self.plane(offset=(28, -4, 2), name="Dart", point1=(0, 0, 0), point2=(2, 10, 20)))
         self.gameObjects.extend(self.plane(offset=(22, -4, 6), name="Dart", point1=(0, 0, 0), point2=(2, 10, 22)))
@@ -119,7 +119,8 @@ class cgprogram(ShowBase):
         self.player = go.GameObject(parent=self.render, name="Furvival_Foco32", loader=self.loader, is_3d=False, use_gravity=True, physics_mgr=self.physicsMgr, gravity_force=self.gravity_force)
         self.player.setPos(0, 0, 2)
         self.gameObjects.append(self.player)
-        self.player.createCollider("box", debug=self.debug, box_size=(-0.5, -0.25, 0, 0.5, 0.25, 1.0))
+        self.player.createCollider("box", debug=self.debug, box_size=(-0.5, -0.5, 0, 0.5, 0.5, 1.0))
+        self.player.camera = self.cam
 
         # プレイヤー専用ライト
         player_light = DirectionalLight("player_light")
@@ -397,15 +398,6 @@ class cgprogram(ShowBase):
 
     def playerShadow(self, dt: float):
         player_pos = self.player.getPos()
-
-        camera_pos = self.cam.getPos(self.render)
-
-        # 水平方向の角度だけ計算する
-        dx = camera_pos.x - player_pos.x
-        dy = camera_pos.y - player_pos.y
-
-        heading = math.degrees(math.atan2(dx, -dy))
-        self.player.node.setH(heading)
         
         if player_pos.z < -5:
             self.player.setPos(0, 0, 1.5)
@@ -421,7 +413,7 @@ class cgprogram(ShowBase):
             obj.update(dt)
 
         # プレイヤーのワールド座標
-        player_pos = self.player.node.getPos(self.render)
+        #player_pos = self.player.node.getPos(self.render)
 
         # プレイヤーの少し上から真下へレイを飛ばす
         self.shadow_ray.setOrigin(
