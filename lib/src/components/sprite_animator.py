@@ -1,7 +1,6 @@
 from typing import Any
 
-from panda3d.core import Camera,NodePath,OrthographicLens
-from panda3d.core import CardMaker, TextureStage, TransparencyAttrib
+from panda3d.core import NodePath, TextureStage
 
 motion_data = {
     "Furvival_Foco32": {

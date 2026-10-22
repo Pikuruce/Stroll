@@ -1,20 +1,17 @@
 from pathlib import Path
 from typing import Any
+import math
 
 from panda3d.core import (
     NodePath,
     CardMaker,
     TransparencyAttrib,
 )
-from panda3d.physics import ActorNode, ForceNode, LinearVectorForce
-from direct.showbase.ShowBase import ShowBase
+from panda3d.physics import ActorNode
 
 import lib.utils.asset_path as path
 import lib.src.components.sprite_animator as sprani
 import lib.src.components.collider as col
-import math
-from panda3d.core import SamplerState
-from panda3d.core import CardMaker, TextureStage, TransparencyAttrib
 
 
 class GameObject:
@@ -25,8 +22,8 @@ class GameObject:
         name: str,
         is_3d: bool = True,
         use_gravity: bool = False,
-        physics_mgr=None,
-        gravity_force=None,
+        physics_mgr = None,
+        gravity_force = None,
     ):
         if use_gravity:
             self.actor_node = ActorNode(name)
@@ -65,8 +62,12 @@ class GameObject:
 
         self.collider = None
         self.camera = None
+        self.self_func = None
 
-    def createCollider(self, collision_type: str, debug: bool, sphere_size: tuple = (0, 0, 0.5, 0.45), box_size: tuple = (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),) -> None:
+    def createCollider(self, collision_type: str,
+                       debug: bool, 
+                       sphere_size: tuple = (0, 0, 0.5, 0.45), 
+                       box_size: tuple = (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),) -> None:
         self.collider = col.Collider(
             parent=self.node,
             name=self.name,
@@ -199,6 +200,12 @@ class GameObject:
         else:
             self.node.setScale(x, y, z)
 
+    def setCamera(self, camera) -> None:
+        self.camera = camera
+
+    def setSelfFunction(self, func) -> None:
+        self.self_func = func
+
     def remove(self) -> None:
         self.node.removeNode()
 
@@ -208,3 +215,6 @@ class GameObject:
 
         if not self.is_3d and self.camera is not None:
             self.faceCamera()
+
+        if self.self_func is not None:
+            self.self_func(self, dt)

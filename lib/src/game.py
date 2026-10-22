@@ -1,23 +1,32 @@
-import copy,random
-from panda3d.core import WindowProperties,DirectionalLight,AmbientLight
-from panda3d.core import CollisionHandlerEvent, CollisionNode,CollisionSphere,CollisionBox,CollisionTraverser,CollisionHandlerPusher
-from panda3d.core import Camera,NodePath,OrthographicLens
-from panda3d.physics import ActorNode,PhysicsCollisionHandler, ForceNode, LinearVectorForce
-from panda3d.core import Vec3
+import random
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.showbase.ShowBase import ShowBase
 import lib.utils.asset_path as path
 import lib.utils.app_config as ac
 import lib.src.components.game_object as go
 from direct.task import Task
+import math
+import lib.src.components.object_scenario as objsce
+
 from panda3d.core import ClockObject
 from panda3d.core import (
     CollisionRay,
     CollisionHandlerQueue,
     BitMask32,
     Point3,
+    WindowProperties,
+    DirectionalLight,
+    AmbientLight,
+    CollisionHandlerEvent, 
+    CollisionNode,
+    CollisionTraverser,
+    Camera,
+    NodePath,
+    OrthographicLens,
+    Vec3
 )
-import math
+
+from panda3d.physics import PhysicsCollisionHandler, ForceNode, LinearVectorForce
 
 class cgprogram(ShowBase):
     def __init__(self):
@@ -37,6 +46,45 @@ class cgprogram(ShowBase):
         self.camera_rotate_speed = 90.0  # 1秒あたりの回転角度
         self.camera_distance = 20.0
         self.camera_height = 10.0
+
+        self.camera_pitch = 0.0          # 上下の視点角度
+        self.camera_pitch_speed = 60.0   # 1秒あたりの回転角度
+        self.camera_min_pitch = -60.0   # 下向きの限界
+        self.camera_max_pitch = 30.0    # 上向きの限界
+
+        # カメラの障害物検出用レイ
+        self.camera_ray = CollisionRay()
+
+        self.camera_ray_node = CollisionNode("camera-ray")
+        self.camera_ray_node.addSolid(self.camera_ray)
+
+        # 壁や床など、bit(1) のオブジェクトを検出
+        self.camera_ray_node.setFromCollideMask(BitMask32.bit(1))
+        self.camera_ray_node.setIntoCollideMask(BitMask32.allOff())
+
+        self.camera_ray_np = self.render.attachNewNode(
+            self.camera_ray_node
+        )
+
+        self.camera_ray_queue = CollisionHandlerQueue()
+        self.camera_ray_traverser = CollisionTraverser()
+
+        self.camera_ray_traverser.addCollider(
+            self.camera_ray_np,
+            self.camera_ray_queue,
+        )
+
+        # カメラと障害物の間に確保する余白
+        self.camera_collision_margin = 0.5
+
+        # カメラの現在の距離（初期値は通常のカメラ位置）
+        self.camera_current_distance = math.sqrt(
+            self.camera_distance ** 2
+            + (self.camera_height - 0.5) ** 2
+        )
+
+        # 障害物がなくなったときにカメラが後退する速さ
+        self.camera_return_speed = 60.0
 
         lens=OrthographicLens()
         lens.setFilmSize(2,2)
@@ -90,13 +138,23 @@ class cgprogram(ShowBase):
 
         self.gameObjects = []
 
+        def scenario(target: go.GameObject, dt: float) -> None:
+            objsce.straight(target, 1, 0, 0, 3 * dt)
+
+        obj = go.GameObject(self.render, self.loader, "Red")
+        obj.setPos(-6, 0, 2)
+        obj.createCollider("box", self.debug)
+        obj.setSelfFunction(scenario)
+        self.gameObjects.append(obj)
+
         #床
-        self.gameObjects.extend(self.plane(offset=(0, -4, 0), name="Red", point1=(0, 0, 0), point2=(8, 10, 2)))
+        self.gameObjects.extend(self.plane(offset=(0, -4, 0), name="Grass", point1=(0, 0, 0), point2=(18, 20, 2)))
         self.gameObjects.extend(self.plane(offset=(20, -4, 0), name="Grass", point1=(0, 0, 0), point2=(8, 10, 2)))
 
         flower = go.GameObject(self.render, self.loader, "Dance_Flower", False)
-        flower.setPos(1, 0, 1)
-        flower.camera = self.cam
+        flower.setPos(34, 0, 23)
+        flower.setCamera(self.cam)
+        flower.createCollider("box", self.debug, box_size=(-0.25, -0.25, 0, 0.25, 0.25, 0.1))
         self.gameObjects.append(flower)
         #壁
         self.gameObjects.extend(self.plane(offset=(28, -4, 2), name="Dart", point1=(0, 0, 0), point2=(2, 10, 20)))
@@ -120,7 +178,7 @@ class cgprogram(ShowBase):
         self.player.setPos(0, 0, 2)
         self.gameObjects.append(self.player)
         self.player.createCollider("box", debug=self.debug, box_size=(-0.5, -0.5, 0, 0.5, 0.5, 1.0))
-        self.player.camera = self.cam
+        self.player.setCamera(self.cam)
 
         # プレイヤー専用ライト
         player_light = DirectionalLight("player_light")
@@ -190,7 +248,9 @@ class cgprogram(ShowBase):
             "right": False,
             "space": False,
             "right_arrow": False,
-            "left_arrow": False
+            "left_arrow": False,
+            "up_arrow": False,
+            "down_arrow": False
         }
 
         self.move_speed = 8.0
@@ -199,9 +259,11 @@ class cgprogram(ShowBase):
         self.jump_count = 2
         self.jump_power = 15.0
         self.jump_cooltime = 0.3
-        self.inertia = 40
+        self.collision_end_detect = 0.0
+        self.inertia = 20
         self.dx = 0.0
         self.dy = 0.0
+        self.respown_point = self.player.getPos()
 
         self.accept("w", self.setKey, ["up", True])
         self.accept("w-up", self.setKey, ["up", False])
@@ -224,6 +286,12 @@ class cgprogram(ShowBase):
         self.accept("arrow_left", self.setKey, ["left_arrow", True])
         self.accept("arrow_left-up", self.setKey, ["left_arrow", False])
 
+        self.accept("arrow_up", self.setKey, ["up_arrow", True])
+        self.accept("arrow_up-up", self.setKey, ["up_arrow", False])
+
+        self.accept("arrow_down", self.setKey, ["down_arrow", True])
+        self.accept("arrow_down-up", self.setKey, ["down_arrow", False])
+
         self.on_collision = False
 
         self.cTravEvent = CollisionTraverser()
@@ -231,6 +299,7 @@ class cgprogram(ShowBase):
 
         self.handler.addInPattern("%fn-into")
         self.handler.addOutPattern("%fn-out")
+        self.handler.addInPattern("%fn-into-%in")
 
         self.cTravEvent.addCollider(
             self.player.collider.collision_np,
@@ -244,6 +313,14 @@ class cgprogram(ShowBase):
         self.accept(
             "Furvival_Foco32-out",
             self.onCollisionEndPlayer,
+        )
+        self.accept(
+            "Furvival_Foco32-into-Red",
+            self.onCollisionRed,
+        )
+        self.accept(
+            "Furvival_Foco32-into-Dance_Flower",
+            self.onCollisionDanceFlower,
         )
 
         # BGMを読み込む
@@ -267,9 +344,30 @@ class cgprogram(ShowBase):
         self.on_collision = True
 
     def onCollisionEndPlayer(self, entry):
-        #self.normal.x = 0.0
-        #self.normal.y = 0.0
+        self.collision_end_detect = 0.1
         self.on_collision = False
+
+    def onCollisionRed(self, entry):
+        self.player.setPos(self.respown_point.x, self.respown_point.y, self.respown_point.z)
+
+    def onCollisionDanceFlower(self, entry):
+        into_np = entry.getIntoNodePath()
+        flower = None
+
+        while not into_np.isEmpty():
+            flower = next(
+                (obj for obj in self.gameObjects if obj.node == into_np),
+                None
+            )
+
+            if flower is not None:
+                break
+
+            into_np = into_np.getParent()
+
+        if flower is not None:
+            self.respown_point = flower.getPos()
+            flower.sprite_animator.play(direction="front", motion="dance", loop=True)
 
     def loadImage(self, image_name: str, scale: tuple[float, float, float]) -> OnscreenImage:
         img_path = path.image_path(image_name)
@@ -341,15 +439,18 @@ class cgprogram(ShowBase):
             move_y /= length
 
         if self.jump:
-
             next_dx = self.dx + move_x / self.inertia
             next_dy = self.dy + move_y / self.inertia
 
-            if abs(self.dx) <= 1 or abs(next_dx) < abs(self.dx):
-                self.dx = next_dx
+            speed = math.hypot(next_dx, next_dy)
 
-            if abs(self.dy) <= 1 or abs(next_dy) < abs(self.dy):
-                self.dy = next_dy
+            if speed > 1:
+                scale = 1 / speed
+                next_dx *= scale
+                next_dy *= scale
+
+            self.dx = next_dx
+            self.dy = next_dy
 
         else:
             self.dx = move_x
@@ -398,19 +499,6 @@ class cgprogram(ShowBase):
 
     def playerShadow(self, dt: float):
         player_pos = self.player.getPos()
-        
-        if player_pos.z < -5:
-            self.player.setPos(0, 0, 1.5)
-            self.player.actor_node.getPhysicsObject().setVelocity(
-            Vec3(0, 0, 0)
-            )
-
-        self.cTrav.traverse(self.render)
-
-        self.cTravEvent.traverse(self.render)
-
-        for obj in self.gameObjects:
-            obj.update(dt)
 
         # プレイヤーの少し上から真下へレイを飛ばす
         self.shadow_ray.setOrigin(
@@ -443,8 +531,9 @@ class cgprogram(ShowBase):
             # 地面がなければ影を消す
             self.player.shadow_node.hide()
 
+    
     def cameraMove(self, dt: float):
-        # 右矢印で時計回り、左矢印で反時計回り
+        # 左右の回転
         rotate_input = (
             int(self.keys["left_arrow"])
             - int(self.keys["right_arrow"])
@@ -454,42 +543,137 @@ class cgprogram(ShowBase):
             rotate_input * self.camera_rotate_speed * dt
         )
 
-        # 角度をラジアンに変換
-        angle = math.radians(self.camera_angle)
+        # 上下の回転
+        pitch_input = (
+            int(self.keys["up_arrow"])
+            - int(self.keys["down_arrow"])
+        )
+
+        self.camera_pitch += (
+            pitch_input * self.camera_pitch_speed * dt
+        )
+
+        # 上下の角度を制限
+        self.camera_pitch = max(
+            self.camera_min_pitch,
+            min(self.camera_pitch, self.camera_max_pitch),
+        )
 
         # プレイヤーのワールド座標
         player_pos = self.player.node.getPos(self.render)
 
-        # プレイヤーを中心にカメラを配置
-        offset_x = -self.camera_distance * math.sin(angle)
-        offset_y = -self.camera_distance * math.cos(angle)
+        angle = math.radians(self.camera_angle)
+        pitch = math.radians(self.camera_pitch)
 
-        self.cam.setPos(
+        horizontal_distance = self.camera_distance * math.cos(pitch)
+        vertical_offset = self.camera_distance * math.sin(pitch)
+
+        offset_x = -horizontal_distance * math.sin(angle)
+        offset_y = -horizontal_distance * math.cos(angle)
+
+        desired_camera_pos = Point3(
             player_pos.x + offset_x,
             player_pos.y + offset_y,
-            player_pos.z + self.camera_height,
+            player_pos.z + self.camera_height + vertical_offset,
         )
 
+        # プレイヤーの少し上を、レイの始点にする
+        target = Point3(
+            player_pos.x,
+            player_pos.y,
+            player_pos.z + 0.5,
+        )
+
+        # 始点からカメラの通常位置までの方向と距離
+        direction = desired_camera_pos - target
+        max_distance = direction.length()
+        direction.normalize()
+
+        self.camera_ray.setOrigin(target)
+        self.camera_ray.setDirection(direction)
+
+        # 障害物を検出
+        self.camera_ray_queue.clearEntries()
+        self.camera_ray_traverser.traverse(self.render)
+        self.camera_ray_queue.sortEntries()
+
+        # 通常時のカメラ距離を目標値とする
+        target_distance = max_distance
+
+        if self.camera_ray_queue.getNumEntries() > 0:
+            entry = self.camera_ray_queue.getEntry(0)
+
+            # 衝突位置をワールド座標で取得
+            hit_pos = entry.getSurfacePoint(self.render)
+
+            # レイの始点から障害物までの距離
+            hit_distance = (hit_pos - target).length()
+
+            # 障害物の手前に余白を確保
+            target_distance = min(
+                max_distance,
+                max(
+                    0.5,
+                    hit_distance - self.camera_collision_margin,
+                ),
+            )
+
+        # 障害物がある場合は即座に近づく。
+        # 障害物がない場合は徐々に通常距離まで戻す。
+        if target_distance < self.camera_current_distance:
+            self.camera_current_distance = target_distance
+        else:
+            self.camera_current_distance = min(
+                target_distance,
+                self.camera_current_distance
+                + self.camera_return_speed * dt,
+            )
+
+        # 調整した距離にカメラを配置
+        camera_pos = target + direction * self.camera_current_distance
+        self.cam.setPos(self.render, camera_pos)
+
         # 常にプレイヤーを向く
-        self.cam.lookAt(self.player.node)
+        target_point = self.player.getPos()
+        target_point.z += 0.5
+        self.cam.lookAt(target_point)
 
         # 背景のスクロール
         offset_x = (
             player_pos.x - self.background_start_x
         ) * 0.005
-
         self.background.setX(-offset_x)
 
         offset_z = (
             player_pos.z - self.background_start_z
         ) * 0.005
-
         self.background.setZ(-offset_z)
+
 
     def update(self, _task: Task) -> None:
         dt = ClockObject.getGlobalClock().getDt()
         if self.jump_cooltime >= 0:
             self.jump_cooltime -= dt
+
+        self.collision_end_detect -= dt
+        if self.collision_end_detect > 0 and self.collision_end_detect - dt <= 0:
+            self.normal.x = 0.0
+            self.normal.y = 0.0
+
+        player_pos = self.player.getPos()
+                
+        if player_pos.z < -5:
+            self.player.setPos(self.respown_point.x, self.respown_point.y, self.respown_point.z)
+            self.player.actor_node.getPhysicsObject().setVelocity(
+            Vec3(0, 0, 0)
+            )
+
+        self.cTrav.traverse(self.render)
+
+        self.cTravEvent.traverse(self.render)
+
+        for obj in self.gameObjects:
+            obj.update(dt)
 
         self.playerMove(dt)
         self.playerShadow(dt)

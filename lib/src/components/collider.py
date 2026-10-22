@@ -1,5 +1,4 @@
 from panda3d.core import (
-    BitMask32,
     CollisionNode,
     CollisionSphere,
     CollisionBox,
