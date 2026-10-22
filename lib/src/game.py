@@ -91,7 +91,7 @@ class cgprogram(ShowBase):
         self.gameObjects = []
 
         #床
-        self.gameObjects.extend(self.plane(offset=(0, -4, 0), name="Grass", point1=(0, 0, 0), point2=(8, 10, 2)))
+        self.gameObjects.extend(self.plane(offset=(0, -4, 0), name="Red", point1=(0, 0, 0), point2=(8, 10, 2)))
         self.gameObjects.extend(self.plane(offset=(20, -4, 0), name="Grass", point1=(0, 0, 0), point2=(8, 10, 2)))
 
         flower = go.GameObject(self.render, self.loader, "Dance_Flower", False)
