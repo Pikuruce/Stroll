@@ -1,0 +1,2 @@
+texture-minfilter nearest
+texture-magfilter nearest

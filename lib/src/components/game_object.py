@@ -155,14 +155,6 @@ class GameObject:
         shadow_card_maker = CardMaker("Furvival_Shadow")
         shadow_card_maker.setFrame(-0.5, 0.5, 0.0, 1.0)
 
-        # ドット絵の輪郭をぼかさない
-        image.setMinfilter(SamplerState.FT_nearest)
-        image.setMagfilter(SamplerState.FT_nearest)
-        image.setAnisotropicDegree(1)
-        shadow_image.setMinfilter(SamplerState.FT_nearest)
-        shadow_image.setMagfilter(SamplerState.FT_nearest)
-        shadow_image.setAnisotropicDegree(1)
-
         # 親ノードへの登録は、呼び出し元で行う
         card = NodePath(card_maker.generate())
         card.setTexture(image)
@@ -172,6 +164,7 @@ class GameObject:
         shadow_card.setTexture(shadow_image)
         shadow_card.setP(-90)
         shadow_card.setScale(0.6, 0.6, 0.6)
+        shadow_card.setPos(0, -0.25, 0.05)
         shadow_card.setTransparency(TransparencyAttrib.MAlpha)
         
 

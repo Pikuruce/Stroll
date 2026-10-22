@@ -199,7 +199,7 @@ class cgprogram(ShowBase):
         self.jump_count = 2
         self.jump_power = 15.0
         self.jump_cooltime = 0.3
-        self.inertia = 20
+        self.inertia = 40
         self.dx = 0.0
         self.dy = 0.0
 
@@ -412,14 +412,11 @@ class cgprogram(ShowBase):
         for obj in self.gameObjects:
             obj.update(dt)
 
-        # プレイヤーのワールド座標
-        #player_pos = self.player.node.getPos(self.render)
-
         # プレイヤーの少し上から真下へレイを飛ばす
         self.shadow_ray.setOrigin(
             player_pos.x,
             player_pos.y,
-            player_pos.z,
+            player_pos.z + 0.1,
         )
 
         self.shadow_queue.clearEntries()
