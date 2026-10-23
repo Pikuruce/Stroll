@@ -63,6 +63,7 @@ class GameObject:
         self.collider = None
         self.camera = None
         self.self_func = None
+        self.init_pos = None
 
     def createCollider(self, collision_type: str,
                        debug: bool, 
@@ -188,8 +189,10 @@ class GameObject:
         # モデルだけ回転させる（コリジョンは回転しない）
         self.model.setH(heading)
 
-    def setPos(self, x, y, z) -> None:
+    def setPos(self, x, y, z, init_pos: bool = False) -> None:
         self.node.setPos(x, y, z)
+        if init_pos:
+            self.init_pos = self.node.getPos()
 
     def getPos(self):
         return self.node.getPos()
@@ -199,6 +202,13 @@ class GameObject:
             self.node.setScale(x)
         else:
             self.node.setScale(x, y, z)
+
+    def setRotate(self, h: float, p: float = 0, r: float = 0) -> None:
+        self.node.setHpr(h, p, r)
+
+    def getRotate(self) -> tuple[float, float, float]:
+        hpr = self.node.getHpr()
+        return hpr.x, hpr.y, hpr.z
 
     def setCamera(self, camera) -> None:
         self.camera = camera

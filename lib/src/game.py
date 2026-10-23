@@ -4,9 +4,9 @@ from direct.showbase.ShowBase import ShowBase
 import lib.utils.asset_path as path
 import lib.utils.app_config as ac
 import lib.src.components.game_object as go
+import lib.src.components.terrain as terrain
 from direct.task import Task
 import math
-import lib.src.components.object_scenario as objsce
 
 from panda3d.core import ClockObject
 from panda3d.core import (
@@ -33,25 +33,119 @@ class cgprogram(ShowBase):
         ShowBase.__init__(self)
         self.exitFunc=self.exit
         self.accept('escape',self.userExit)
-
-        self.debug = ac.get_debug_mode()
-        properties=WindowProperties()
-        properties.setSize(ac.get_window_size())
-        self.win.requestProperties(properties)
-
         self.disableMouse()
+        self.gameObjects = []
+
+        # システム設定
+        system_config = ac.get_system_config()
+        self.debug = system_config["debug_mode"]
+
+        # 画面設定
+        window_config = ac.get_window_config()
+        self.window_width = window_config["width"]
+        self.window_height = window_config["height"]
+        self.full_screen = window_config["fullscreen"]
+        self.setup_screen()
 
         # カメラ設定
+        camera_config = ac.get_camera_config()
+        self.camera_rotate_speed = camera_config["rotate_speed"]
+        self.camera_distance = camera_config["distance"]
+        self.camera_height = camera_config["height"]
+        self.camera_pitch_speed = camera_config["pitch_speed"]
+        self.camera_min_pitch = camera_config["min_pitch"]
+        self.camera_max_pitch = camera_config["max_pitch"]
+        self.camera_collision_margin = camera_config["collision_margin"]
+        self.camera_return_speed = camera_config["return_speed"]
         self.camera_angle = 0.0
-        self.camera_rotate_speed = 90.0  # 1秒あたりの回転角度
-        self.camera_distance = 20.0
-        self.camera_height = 10.0
+        self.camera_pitch = 0.0
+        self.setup_camera()
 
-        self.camera_pitch = 0.0          # 上下の視点角度
-        self.camera_pitch_speed = 60.0   # 1秒あたりの回転角度
-        self.camera_min_pitch = -60.0   # 下向きの限界
-        self.camera_max_pitch = 30.0    # 上向きの限界
+        # ライト設定
+        light_config = ac.get_light_config()
+        self.color_r = light_config["color"]["r"]
+        self.color_g = light_config["color"]["g"]
+        self.color_b = light_config["color"]["b"]
+        self.color_a = light_config["color"]["a"]
+        self.setup_light()
 
+        # バックグラウンド設定
+        background_config = ac.get_background_config()
+        self.background_start_x = background_config["start_x"]
+        self.background_start_z = background_config["start_z"]
+        self.setup_background()
+
+        # 重力設定
+        gravity_config = ac.get_gravity_config()
+        self.force = gravity_config["force"]
+        self.setup_gravity()
+
+        # プレイヤー設定
+        player_config = ac.get_player_config()
+        self.move_speed = player_config["move_speed"]
+        self.max_fall_speed = player_config["max_fall_speed"]
+        self.jump_power = player_config["jump_power"]
+        self.inertia = player_config["inertia"]
+        self.on_collision = False
+        self.jump = False
+        self.jump_count = 2
+        self.jump_cooltime = 0.3
+        self.collision_end_detect = 0.0
+        self.dx = 0.0
+        self.dy = 0.0
+        self.setup_player()
+
+        # マップ設定
+        map_config = ac.get_map_config()
+        self.save_zone = map_config["save_zone"]
+        self.save_span = map_config["save_span"]
+        self.flower = None
+        self.setup_world()
+
+        # 操作キー設定
+        self.setup_key()
+
+        # 当たり判監視定設定
+        self.setup_collision()
+
+        # オーディオ設定
+        audio_config = ac.get_audio_config()
+        self.master_volume = audio_config["master_volume"]
+        self.bgm_volume = audio_config["bgm_volume"]
+        self.se_volume = audio_config["se_volume"]
+        self.setup_audio()
+
+        # タスクスタート
+        self.taskMgr.add(self.update, "update")
+
+    def setup_screen(self) -> None:
+        properties = WindowProperties()
+        properties.setFullscreen(self.full_screen)
+
+        if self.full_screen:
+            # ディスプレイの解像度を指定する
+            properties.setSize(
+                self.pipe.getDisplayWidth(),
+                self.pipe.getDisplayHeight(),
+            )
+        else:
+            properties.setSize(
+                self.window_width,
+                self.window_height,
+            )
+
+        self.win.requestProperties(properties)
+
+    def setup_audio(self) -> None:
+        # BGMを読み込む
+        self.bgm = self.loader.loadMusic("assets/sounds/marble soda.ogg")
+
+        # ループ再生
+        self.bgm.setLoop(True)
+        self.bgm.setVolume(self.master_volume * self.bgm_volume)
+        self.bgm.play()
+
+    def setup_camera(self) -> None:
         # カメラの障害物検出用レイ
         self.camera_ray = CollisionRay()
 
@@ -74,18 +168,13 @@ class cgprogram(ShowBase):
             self.camera_ray_queue,
         )
 
-        # カメラと障害物の間に確保する余白
-        self.camera_collision_margin = 0.5
-
         # カメラの現在の距離（初期値は通常のカメラ位置）
         self.camera_current_distance = math.sqrt(
             self.camera_distance ** 2
             + (self.camera_height - 0.5) ** 2
         )
 
-        # 障害物がなくなったときにカメラが後退する速さ
-        self.camera_return_speed = 60.0
-
+    def setup_background(self) -> None:
         lens=OrthographicLens()
         lens.setFilmSize(2,2)
         lens.setNearFar(-1000,1000)
@@ -116,8 +205,9 @@ class cgprogram(ShowBase):
         self.foreground1.reparentTo(fgnp)
         self.foreground1.setTransparency(True)
 
+    def setup_light(self) -> None:
         light1=AmbientLight('light1')
-        light1.setColor((0.5,0.5,0.5,1))
+        light1.setColor((self.color_r,self.color_g,self.color_b,self.color_a))
         light1=self.render.attachNewNode(light1)
         self.render.setLight(light1)
 
@@ -127,53 +217,91 @@ class cgprogram(ShowBase):
         light2.setHpr(0,-60,0)
         self.render.setLight(light2)
 
+    def setup_gravity(self) -> None:
         # 物理システムの更新を有効化
         self.enableParticles()
 
         gravity_node = ForceNode("world-gravity")
         gravity_np = self.render.attachNewNode(gravity_node)
 
-        self.gravity_force = LinearVectorForce(0, 0, -35)
+        self.gravity_force = LinearVectorForce(0, 0, self.force)
         gravity_node.addForce(self.gravity_force)
+    
+    def setup_world(self) -> None:
+        self.section_count = 0
+        # オブジェクト設置用関数
+        def plane(
+            name: str,
+            offset: tuple[float, float, float],
+            point1: tuple[float, float, float],
+            point2: tuple[float, float, float], 
+            ) -> list[go.GameObject]:
+            obj_list = []
+            for x in range(int(offset[0]) + int(point1[0]), int(offset[0]) + int(point1[0]) + int(point2[0] - point1[0]) + 1, 2):
+                for y in range(int(offset[1]) + int(point1[1]) + self.section_count * self.save_span, int(offset[1]) + int(point1[1]) + int(point2[1] - point1[1]) + self.section_count * self.save_span + 1, 2):
+                    for z in range(int(offset[2]) + int(point1[2]), int(offset[2]) + int(point1[2]) + int(point2[2] - point1[2]) + 1, 2):
+                        obj = go.GameObject(parent=self.render, loader=self.loader, name=name, is_3d=True)
+                        obj.setPos(x, y, z, init_pos=True)
+                        obj.createCollider("box", debug=self.debug)
+                        obj.collider.collision_np.node().setIntoCollideMask(
+                            BitMask32.bit(1)
+                        )
+                        obj_list.append(obj)
+            return obj_list
 
-        self.gameObjects = []
+        # キャラ(花)生成関数
+        def generateFlower() -> go.GameObject:
+            flower = go.GameObject(self.render, self.loader, "Dance_Flower", False)
+            flower.setScale(1.5, 1.5, 1.5)
+            flower.setCamera(self.cam)
+            flower.createCollider("box", self.debug, box_size=(-0.3, -0.3, 0, 0.3, 0.3, 0.1))
+            return flower
 
-        def scenario(target: go.GameObject, dt: float) -> None:
-            objsce.straight(target, 1, 0, 0, 3 * dt)
+        # セーブ地帯追加
+        def generateSaveZone(save_count: int) -> list[go.GameObject]:
+            objects = []
+            objects.extend(plane(name="Grass", offset=(-2, -2 + self.save_span * save_count, 0), point1=(0, 0, 0), point2=(4, 4, 0)))
+            flower = generateFlower()
+            flower.setPos(0, self.save_span * save_count, 1)
+            objects.append(flower)
+            return objects
 
-        obj = go.GameObject(self.render, self.loader, "Red")
-        obj.setPos(-6, 0, 2)
-        obj.createCollider("box", self.debug)
-        obj.setSelfFunction(scenario)
-        self.gameObjects.append(obj)
+        # セクション関数群
+        def set_section(func) -> None:
+            func()
+            self.section_count += 1
 
-        #床
-        self.gameObjects.extend(self.plane(offset=(0, -4, 0), name="Grass", point1=(0, 0, 0), point2=(18, 20, 2)))
-        self.gameObjects.extend(self.plane(offset=(20, -4, 0), name="Grass", point1=(0, 0, 0), point2=(8, 10, 2)))
+        # 直進
+        def sec1() -> None:
+            self.gameObjects.extend(plane(name="Grass", offset=(0, 10, 0), point1=(0, 0, 0), point2=(0, 20, 0)))
 
-        flower = go.GameObject(self.render, self.loader, "Dance_Flower", False)
-        flower.setPos(34, 0, 23)
-        flower.setCamera(self.cam)
-        flower.createCollider("box", self.debug, box_size=(-0.25, -0.25, 0, 0.25, 0.25, 0.1))
-        self.gameObjects.append(flower)
-        #壁
-        self.gameObjects.extend(self.plane(offset=(28, -4, 2), name="Dart", point1=(0, 0, 0), point2=(2, 10, 20)))
-        self.gameObjects.extend(self.plane(offset=(22, -4, 6), name="Dart", point1=(0, 0, 0), point2=(2, 10, 22)))
-        #上の床
-        self.gameObjects.extend(self.plane(offset=(28, -4, 22), name="Grass", point1=(0, 0, 0), point2=(10, 26, 2)))
-        #壁
-        self.gameObjects.extend(self.plane(offset=(28, 26, 0), name="Dart", point1=(0, 0, 0), point2=(10, 2, 26)))
-        #床
-        self.gameObjects.extend(self.plane(offset=(28, 22, 0), name="Grass", point1=(0, 0, 0), point2=(10, 4, 2)))
-        #点在床
-        self.gameObjects.extend(self.plane(offset=(38, 10, 0), name="Grass", point1=(2, 12, 0), point2=(4, 14, 2)))
-        self.gameObjects.extend(self.plane(offset=(38, 10, 0), name="Grass", point1=(4, 6, 0), point2=(6, 8, 2)))
-        self.gameObjects.extend(self.plane(offset=(38, 10, 0), name="Grass", point1=(0, 2, 0), point2=(2, 4, 2)))
-        self.gameObjects.extend(self.plane(offset=(38, 10, 0), name="Grass", point1=(6, -4, 0), point2=(8, -2, 2)))
-        self.gameObjects.extend(self.plane(offset=(38, 10, 0), name="Grass", point1=(10, -10, 0), point2=(12, -8, 2)))
-        #床
-        self.gameObjects.extend(self.plane(offset=(38, -10, 0), name="Grass", point1=(0, 0, 0), point2=(10, 10, 2)))
+        # 二段ジャンプ
+        def sec2() -> None:
+            self.gameObjects.extend(plane(name="Grass", offset=(0, 15, 0), point1=(0, 0, 0), point2=(0, 10, 0)))
 
+        # レッドブロック
+        def sec3() -> None:
+            self.gameObjects.extend(plane(name="Grass", offset=(0, 10, 0), point1=(0, 0, 0), point2=(0, 20, 0)))
+            self.gameObjects.extend(plane(name="Red", offset=(0, 20, 0), point1=(0, 0, 2), point2=(0, 6, 2)))
+
+        # 壁キック
+        def sec4() -> None:
+            self.gameObjects.extend(plane(name="Grass", offset=(0, 10, 0), point1=(0, 0, 0), point2=(0, 20, 0)))
+            self.gameObjects.extend(plane(name="Grass", offset=(0, 15, 0), point1=(-5, 0, 2), point2=(5, 0, 10)))
+
+
+        # 設置処理
+        for i in range(self.save_zone):
+            self.gameObjects.extend(generateSaveZone(save_count=i))
+
+        set_section(sec1)
+        set_section(sec2)
+        set_section(sec3)
+        set_section(sec4)
+
+        
+
+    def setup_player(self) -> None:
         self.player = go.GameObject(parent=self.render, name="Furvival_Foco32", loader=self.loader, is_3d=False, use_gravity=True, physics_mgr=self.physicsMgr, gravity_force=self.gravity_force)
         self.player.setPos(0, 0, 2)
         self.gameObjects.append(self.player)
@@ -223,9 +351,6 @@ class cgprogram(ShowBase):
             BitMask32.bit(0)
         )
 
-        self.background_start_x = 50
-        self.background_start_z = 0
-
         self.cTrav=CollisionTraverser()
         self.physics_handler = PhysicsCollisionHandler()
 
@@ -239,8 +364,7 @@ class cgprogram(ShowBase):
             self.physics_handler,
         )
 
-        self.taskMgr.add(self.update, "update")
-
+    def setup_key(self) -> None:
         self.keys = {
             "up": False,
             "down": False,
@@ -250,19 +374,9 @@ class cgprogram(ShowBase):
             "right_arrow": False,
             "left_arrow": False,
             "up_arrow": False,
-            "down_arrow": False
+            "down_arrow": False,
         }
 
-        self.move_speed = 8.0
-        self.max_fall_speed = -15
-        self.jump = False
-        self.jump_count = 2
-        self.jump_power = 15.0
-        self.jump_cooltime = 0.3
-        self.collision_end_detect = 0.0
-        self.inertia = 20
-        self.dx = 0.0
-        self.dy = 0.0
         self.respown_point = self.player.getPos()
 
         self.accept("w", self.setKey, ["up", True])
@@ -292,8 +406,9 @@ class cgprogram(ShowBase):
         self.accept("arrow_down", self.setKey, ["down_arrow", True])
         self.accept("arrow_down-up", self.setKey, ["down_arrow", False])
 
-        self.on_collision = False
+        self.accept("f11", self.switchFullscreen)
 
+    def setup_collision(self) -> None:
         self.cTravEvent = CollisionTraverser()
         self.handler = CollisionHandlerEvent()
 
@@ -323,13 +438,25 @@ class cgprogram(ShowBase):
             self.onCollisionDanceFlower,
         )
 
-        # BGMを読み込む
-        self.bgm = self.loader.loadMusic("assets/sounds/marble soda.ogg")
+    def switchFullscreen(self):
+        next_full_screen = not self.full_screen
 
-        # ループ再生
-        self.bgm.setLoop(True)
-        self.bgm.setVolume(0.5)
-        self.bgm.play()
+        properties = WindowProperties()
+        properties.setFullscreen(next_full_screen)
+
+        if next_full_screen:
+            properties.setSize(
+                self.pipe.getDisplayWidth(),
+                self.pipe.getDisplayHeight(),
+            )
+        else:
+            properties.setSize(
+                self.window_width,
+                self.window_height,
+            )
+
+        self.win.requestProperties(properties)
+        self.full_screen = next_full_screen
 
     def onCollisionStartPlayer(self, entry):
         # 衝突した面の法線ベクトルを render 座標系で取得
@@ -366,8 +493,11 @@ class cgprogram(ShowBase):
             into_np = into_np.getParent()
 
         if flower is not None:
+            if self.flower is not None:
+                self.flower.sprite_animator.play(direction="front", motion="idle", loop=False)
             self.respown_point = flower.getPos()
             flower.sprite_animator.play(direction="front", motion="dance", loop=True)
+            self.flower = flower
 
     def loadImage(self, image_name: str, scale: tuple[float, float, float]) -> OnscreenImage:
         img_path = path.image_path(image_name)
@@ -379,25 +509,6 @@ class cgprogram(ShowBase):
             raise RuntimeError(f"Texture loading failed: {img_path}")
         
         return OnscreenImage(image=texture, scale=scale)
-
-    def plane(self, 
-        name: str,
-        offset: tuple[float, float, float],
-        point1: tuple[float, float, float],
-        point2: tuple[float, float, float], 
-        ) -> list[go.GameObject]:
-        obj_list = []
-        for x in range(int(offset[0]) + int(point1[0]), int(offset[0]) + int(point1[0]) + int(point2[0] - point1[0]), 2):
-            for y in range(int(offset[1]) + int(point1[1]), int(offset[1]) + int(point1[1]) + int(point2[1] - point1[1]), 2):
-                for z in range(int(offset[2]) + int(point1[2]), int(offset[2]) + int(point1[2]) + int(point2[2] - point1[2]), 2):
-                    obj = go.GameObject(parent=self.render, loader=self.loader, name=name, is_3d=True)
-                    obj.setPos(x, y, z)
-                    obj.createCollider("box", debug=self.debug)
-                    obj.collider.collision_np.node().setIntoCollideMask(
-                        BitMask32.bit(1)
-                    )
-                    obj_list.append(obj)
-        return obj_list
 
     def playerMove(self, dt: float) -> None:
 

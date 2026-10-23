@@ -11,3 +11,30 @@ def get_window_size() -> tuple[int, int]:
 
 def get_debug_mode() -> bool:
     return config["system"]["debug_mode"]
+
+def get_window_config() -> dict:
+    return config["window"]
+
+def get_audio_config() -> dict:
+    return config["audio"]
+
+def get_camera_config() -> dict:
+    return config["camera"]
+
+def get_background_config() -> dict:
+    return config["background"]
+
+def get_light_config() -> dict:
+    return config["light"]
+
+def get_gravity_config() -> dict:
+    return config["gravity"]
+
+def get_player_config() -> dict:
+    return config["player"]
+
+def get_map_config() -> dict:
+    return config["map"]
+
+def get_system_config() -> dict:
+    return config["system"]

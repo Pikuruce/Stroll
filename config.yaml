@@ -4,9 +4,43 @@ window:
   fullscreen: false
 
 audio:
-  master_volume: 0.8
-  bgm_volume: 0.5
+  master_volume: 1.0
+  bgm_volume: 1.0
   se_volume: 1.0
+
+camera:
+  rotate_speed: 90.0
+  distance: 20.0
+  height: 10.0
+  pitch_speed: 60.0
+  min_pitch: -60.0
+  max_pitch: 30.0
+  collision_margin: 0.5
+  return_speed: 60.0
+
+background:
+  start_x: 50
+  start_z: 0
+
+light:
+  color:
+    r: 0.6
+    g: 0.6
+    b: 0.6
+    a: 1
+
+gravity:
+  force: -35
+
+player:
+  move_speed: 8.0
+  max_fall_speed: -15
+  jump_power: 15.0
+  inertia: 20.0
+
+map:
+  save_zone: 20
+  save_span: 40
 
 system:
   debug_mode: false
