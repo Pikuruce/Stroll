@@ -35,6 +35,7 @@ class GameObject:
             self.actor_node = None
             self.node = parent.attachNewNode(name)
 
+        self.node.setPythonTag("game_object", self)
         self.loader = loader
         self.name = name
         self.is_3d = is_3d
@@ -64,6 +65,9 @@ class GameObject:
         self.camera = None
         self.self_func = None
         self.init_pos = None
+        self.continuous = True
+        self.on_collision = False
+
 
     def createCollider(self, collision_type: str,
                        debug: bool, 
@@ -210,6 +214,9 @@ class GameObject:
         hpr = self.node.getHpr()
         return hpr.x, hpr.y, hpr.z
 
+    def setOnCollision(self, value: bool) -> None:
+        self.on_collision = value
+
     def setCamera(self, camera) -> None:
         self.camera = camera
 
@@ -219,6 +226,10 @@ class GameObject:
     def remove(self) -> None:
         self.node.removeNode()
 
+    def ignitionFunc(self, dt: float=1.0) -> None:
+        if self.self_func is not None:
+            self.self_func(self, dt)
+
     def update(self, dt: float) -> None:
         if hasattr(self, "sprite_animator"):
             self.sprite_animator.update(dt)
@@ -226,5 +237,5 @@ class GameObject:
         if not self.is_3d and self.camera is not None:
             self.faceCamera()
 
-        if self.self_func is not None:
-            self.self_func(self, dt)
+        if self.continuous:
+            self.ignitionFunc(dt=dt)

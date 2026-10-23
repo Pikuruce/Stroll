@@ -1,61 +1,9 @@
 from typing import Any
+import lib.utils.asset_path as path
 
 from panda3d.core import NodePath, TextureStage
 
-motion_data = {
-    "Furvival_Foco32": {
-        "front": {
-            "yip": [(0, 0.5), (1, 0.5)],
-            "idle": [(4, 0.2), (5, 0.2), (6, 0.2), (7, 0.2)],
-            "walk": [(8, 0.1), (9, 0.1), (10, 0.1), (11, 0.1)],
-            "jump": [(12, 2)],
-            "fall": [(16, 2)],
-        },
-        "right": {
-            "yip": [(20, 0.5), (21, 0.5)],
-            "idle": [(24, 0.2), (25, 0.2), (26, 0.2), (27, 0.2)],
-            "walk": [(28, 0.1), (29, 0.1), (30, 0.1), (31, 0.1)],
-            "jump": [(32, 2)],
-            "fall": [(36, 2)],
-        },
-        "back": {
-            "yip": [(40, 0.5)],
-            "idle": [(44, 0.2), (45, 0.2), (46, 0.2), (47, 0.2)],
-            "walk": [(48, 0.1), (49, 0.1), (50, 0.1), (51, 0.1)],
-            "jump": [(52, 2)],
-            "fall": [(56, 2)],
-        },
-        "left": {
-            "yip": [(60, 0.5), (61, 0.5)],
-            "idle": [(64, 0.2), (65, 0.2), (66, 0.2), (67, 0.2)],
-            "walk": [(68, 0.1), (69, 0.1), (70, 0.1), (71, 0.1)],
-            "jump": [(72, 2)],
-            "fall": [(76, 2)],
-        },
-    },
-    "Grass": {
-        "front": {
-            "idle": [(0, 0.3), (1, 0.3), (2, 0.3), (3, 0.3)],
-        }
-    },
-    "Dart": {
-        "front": {
-            "idle": [(0, 0.3), (1, 0.3), (2, 0.3), (3, 0.3)]
-        }
-    },
-    "Dance_Flower": {
-        "front": {
-            "idle": [(1, 1)],
-            "dance": [(0, 0.2), (1, 0.2), (2, 0.2), (3, 0.2), (4, 0.2), (5, 0.2), (6, 0.2)],
-        }
-    },
-    "Red": {
-        "front": {
-            "idle": [(0, 0.3), (1, 0.3), (2, 0.3), (3, 0.3)]
-        }
-    }
-}
-
+motion_data = path.motion_data()
 
 class SpriteAnimator:
     def __init__(
@@ -121,14 +69,14 @@ class SpriteAnimator:
         direction: str,
         motion: str,
         loop: bool = True,
-    ) -> None:
+    ) -> bool:
         # 同じモーションの再指定では再スタートしない
         if (
             self.direction == direction
             and self.motion == motion
         ):
             self.loop = loop
-            return
+            return False
 
         self.direction = direction
         self.motion = motion
@@ -141,6 +89,7 @@ class SpriteAnimator:
             self.motion,
             self.frame_index,
         )
+        return True
 
     def update(self, dt: float) -> None:
         frames = motion_data[self.name][self.direction][self.motion]

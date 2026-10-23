@@ -41,6 +41,7 @@ player:
 map:
   save_zone: 20
   save_span: 40
+  bulk_load: true
 
 system:
   debug_mode: false

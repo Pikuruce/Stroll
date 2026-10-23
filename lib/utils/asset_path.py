@@ -53,3 +53,30 @@ def object_path(object_name: str) -> tuple[Filename, Filename, dict[str, Any]]:
 
 def sound_path(*parts: str) -> Filename:
     return Filename.fromOsSpecific(str(SOUND_DIR.joinpath(*parts)))
+
+def motion_data() -> dict:
+    motion_file = ASSET_DIR / "motion.json"
+
+    with open(motion_file) as f:
+        json_data = json.load(f)
+
+    return list_to_tuple_hook(json_data)
+
+# JSONをパースする際、末端のリストが「すべて数値」かつ「長さが2」ならタプルに変換する関数
+def list_to_tuple_hook(obj):
+    for key, value in obj.items():
+        if isinstance(value, dict):
+            continue  # さらに深いネストは再帰的に処理されるためスルー
+
+        if isinstance(value, list):
+            new_list = []
+            for item in value:
+                # 要素が [数値, 数値] の形（リスト）であればタプルに変換
+                if isinstance(item, list) and all(
+                    isinstance(x, (int, float)) for x in item
+                ):
+                    new_list.append(tuple(item))
+                else:
+                    new_list.append(item)
+            obj[key] = new_list
+    return obj

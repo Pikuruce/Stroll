@@ -8,7 +8,6 @@ import lib.src.components.terrain as terrain
 from direct.task import Task
 import math
 
-from panda3d.core import ClockObject
 from panda3d.core import (
     CollisionRay,
     CollisionHandlerQueue,
@@ -23,7 +22,9 @@ from panda3d.core import (
     Camera,
     NodePath,
     OrthographicLens,
-    Vec3
+    Vec3,
+    ClockObject,
+    LVector3f
 )
 
 from panda3d.physics import PhysicsCollisionHandler, ForceNode, LinearVectorForce
@@ -34,7 +35,6 @@ class cgprogram(ShowBase):
         self.exitFunc=self.exit
         self.accept('escape',self.userExit)
         self.disableMouse()
-        self.gameObjects = []
 
         # システム設定
         system_config = ac.get_system_config()
@@ -86,21 +86,22 @@ class cgprogram(ShowBase):
         self.max_fall_speed = player_config["max_fall_speed"]
         self.jump_power = player_config["jump_power"]
         self.inertia = player_config["inertia"]
-        self.on_collision = False
         self.jump = False
         self.jump_count = 2
         self.jump_cooltime = 0.3
         self.collision_end_detect = 0.0
         self.dx = 0.0
         self.dy = 0.0
+        self.normal = LVector3f(0, 0, 1)
         self.setup_player()
 
         # マップ設定
         map_config = ac.get_map_config()
         self.save_zone = map_config["save_zone"]
         self.save_span = map_config["save_span"]
+        self.bulk_load = map_config["bulk_load"]
         self.flower = None
-        self.setup_world()
+        self.terrain = terrain.Terrain(self.render, self.loader, self.cam, self.bulk_load, self.debug, self.save_zone, self.save_span)
 
         # 操作キー設定
         self.setup_key()
@@ -226,85 +227,10 @@ class cgprogram(ShowBase):
 
         self.gravity_force = LinearVectorForce(0, 0, self.force)
         gravity_node.addForce(self.gravity_force)
-    
-    def setup_world(self) -> None:
-        self.section_count = 0
-        # オブジェクト設置用関数
-        def plane(
-            name: str,
-            offset: tuple[float, float, float],
-            point1: tuple[float, float, float],
-            point2: tuple[float, float, float], 
-            ) -> list[go.GameObject]:
-            obj_list = []
-            for x in range(int(offset[0]) + int(point1[0]), int(offset[0]) + int(point1[0]) + int(point2[0] - point1[0]) + 1, 2):
-                for y in range(int(offset[1]) + int(point1[1]) + self.section_count * self.save_span, int(offset[1]) + int(point1[1]) + int(point2[1] - point1[1]) + self.section_count * self.save_span + 1, 2):
-                    for z in range(int(offset[2]) + int(point1[2]), int(offset[2]) + int(point1[2]) + int(point2[2] - point1[2]) + 1, 2):
-                        obj = go.GameObject(parent=self.render, loader=self.loader, name=name, is_3d=True)
-                        obj.setPos(x, y, z, init_pos=True)
-                        obj.createCollider("box", debug=self.debug)
-                        obj.collider.collision_np.node().setIntoCollideMask(
-                            BitMask32.bit(1)
-                        )
-                        obj_list.append(obj)
-            return obj_list
-
-        # キャラ(花)生成関数
-        def generateFlower() -> go.GameObject:
-            flower = go.GameObject(self.render, self.loader, "Dance_Flower", False)
-            flower.setScale(1.5, 1.5, 1.5)
-            flower.setCamera(self.cam)
-            flower.createCollider("box", self.debug, box_size=(-0.3, -0.3, 0, 0.3, 0.3, 0.1))
-            return flower
-
-        # セーブ地帯追加
-        def generateSaveZone(save_count: int) -> list[go.GameObject]:
-            objects = []
-            objects.extend(plane(name="Grass", offset=(-2, -2 + self.save_span * save_count, 0), point1=(0, 0, 0), point2=(4, 4, 0)))
-            flower = generateFlower()
-            flower.setPos(0, self.save_span * save_count, 1)
-            objects.append(flower)
-            return objects
-
-        # セクション関数群
-        def set_section(func) -> None:
-            func()
-            self.section_count += 1
-
-        # 直進
-        def sec1() -> None:
-            self.gameObjects.extend(plane(name="Grass", offset=(0, 10, 0), point1=(0, 0, 0), point2=(0, 20, 0)))
-
-        # 二段ジャンプ
-        def sec2() -> None:
-            self.gameObjects.extend(plane(name="Grass", offset=(0, 15, 0), point1=(0, 0, 0), point2=(0, 10, 0)))
-
-        # レッドブロック
-        def sec3() -> None:
-            self.gameObjects.extend(plane(name="Grass", offset=(0, 10, 0), point1=(0, 0, 0), point2=(0, 20, 0)))
-            self.gameObjects.extend(plane(name="Red", offset=(0, 20, 0), point1=(0, 0, 2), point2=(0, 6, 2)))
-
-        # 壁キック
-        def sec4() -> None:
-            self.gameObjects.extend(plane(name="Grass", offset=(0, 10, 0), point1=(0, 0, 0), point2=(0, 20, 0)))
-            self.gameObjects.extend(plane(name="Grass", offset=(0, 15, 0), point1=(-5, 0, 2), point2=(5, 0, 10)))
-
-
-        # 設置処理
-        for i in range(self.save_zone):
-            self.gameObjects.extend(generateSaveZone(save_count=i))
-
-        set_section(sec1)
-        set_section(sec2)
-        set_section(sec3)
-        set_section(sec4)
-
-        
 
     def setup_player(self) -> None:
         self.player = go.GameObject(parent=self.render, name="Furvival_Foco32", loader=self.loader, is_3d=False, use_gravity=True, physics_mgr=self.physicsMgr, gravity_force=self.gravity_force)
         self.player.setPos(0, 0, 2)
-        self.gameObjects.append(self.player)
         self.player.createCollider("box", debug=self.debug, box_size=(-0.5, -0.5, 0, 0.5, 0.5, 1.0))
         self.player.setCamera(self.cam)
 
@@ -466,13 +392,28 @@ class cgprogram(ShowBase):
         elif self.normal != -1:
             self.jump_count = max(self.jump_count, 1)
 
-        if not self.on_collision:
+        if not self.player.on_collision:
             self.jump = False
-        self.on_collision = True
+
+        player = self.player
+
+        # プレイヤー自身の状態を変更
+        player.on_collision = True
+
+        # 衝突相手の状態を変更
+        other = self.getGameObject(entry.getIntoNodePath())
+
+        if other is not None:
+            other.on_collision = True
 
     def onCollisionEndPlayer(self, entry):
         self.collision_end_detect = 0.1
-        self.on_collision = False
+        self.player.on_collision = False
+        # 衝突相手の状態を変更
+        other = self.getGameObject(entry.getIntoNodePath())
+
+        if other is not None:
+            other.on_collision = False
 
     def onCollisionRed(self, entry):
         self.player.setPos(self.respown_point.x, self.respown_point.y, self.respown_point.z)
@@ -483,7 +424,7 @@ class cgprogram(ShowBase):
 
         while not into_np.isEmpty():
             flower = next(
-                (obj for obj in self.gameObjects if obj.node == into_np),
+                (obj for obj in self.terrain.gameObjects + self.terrain.trash if obj.node == into_np),
                 None
             )
 
@@ -496,8 +437,17 @@ class cgprogram(ShowBase):
             if self.flower is not None:
                 self.flower.sprite_animator.play(direction="front", motion="idle", loop=False)
             self.respown_point = flower.getPos()
-            flower.sprite_animator.play(direction="front", motion="dance", loop=True)
-            self.flower = flower
+            if flower.sprite_animator.play(direction="front", motion="dance", loop=True):
+                self.flower = flower
+                self.flower.ignitionFunc()
+
+    def getGameObject(self, node: NodePath) -> go.GameObject | None:
+        while not node.isEmpty():
+            if node.hasPythonTag("game_object"):
+                return node.getPythonTag("game_object")
+            node = node.getParent()
+
+        return None
 
     def loadImage(self, image_name: str, scale: tuple[float, float, float]) -> OnscreenImage:
         img_path = path.image_path(image_name)
@@ -783,9 +733,9 @@ class cgprogram(ShowBase):
 
         self.cTravEvent.traverse(self.render)
 
-        for obj in self.gameObjects:
-            obj.update(dt)
+        self.player.update(dt)
 
+        self.terrain.update(dt)
         self.playerMove(dt)
         self.playerShadow(dt)
         self.cameraMove(dt)
