@@ -33,7 +33,7 @@ class Terrain():
         self.gameObjects = []
         self.trash = []
         self.auto_section = [self.sec1, self.sec2, self.sec3, self.sec4, self.sec5, self.sec6, self.sec7, self.sec8, self.sec9, self.sec10, self.sec11, self.sec12, self.sec13, self.sec14, self.sec15, self.sec16, self.sec17]
-        #self.auto_section = [self.sec17]
+        self.auto_section = [self.sec17]
         self.save_count = 0
         self.section_count = 0
 

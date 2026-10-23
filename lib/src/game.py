@@ -139,7 +139,7 @@ class cgprogram(ShowBase):
 
     def setup_audio(self) -> None:
         # BGMを読み込む
-        self.bgm = self.loader.loadMusic("assets/sounds/marble soda.ogg")
+        self.bgm = self.loader.loadSfx("assets/sounds/bgm/marble soda.wav")
 
         # ループ再生
         self.bgm.setLoop(True)
