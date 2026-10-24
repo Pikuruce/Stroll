@@ -14,6 +14,7 @@ CHARACTER_DIR = ASSET_DIR / config["assets"][0]
 IMAGE_DIR = ASSET_DIR / config["assets"][1]
 OBJECT_DIR = ASSET_DIR / config["assets"][2]
 SOUND_DIR = ASSET_DIR / config["assets"][3]
+FONT_DIR = ASSET_DIR / config["assets"][4]
 
 def character_path(character_name: str) -> tuple[Filename, dict[str, Any]]:
     character_dir = CHARACTER_DIR / character_name
@@ -51,8 +52,13 @@ def object_path(object_name: str) -> tuple[Filename, Filename, dict[str, Any]]:
 
     return model_path, texture_path, json_data
 
-def sound_path(*parts: str) -> Filename:
-    return Filename.fromOsSpecific(str(SOUND_DIR.joinpath(*parts)))
+def bgm_path(*parts: str) -> Filename:
+    bgm_dir = SOUND_DIR / "bgm"
+    return Filename.fromOsSpecific(str(bgm_dir.joinpath(*parts)))
+
+def se_path(*parts: str) -> Filename:
+    se_dir = SOUND_DIR / "se"
+    return Filename.fromOsSpecific(str(se_dir.joinpath(*parts)))
 
 def motion_data() -> dict:
     motion_file = ASSET_DIR / "motion.json"
@@ -61,6 +67,10 @@ def motion_data() -> dict:
         json_data = json.load(f)
 
     return list_to_tuple_hook(json_data)
+
+def font_file() -> str:
+    font = FONT_DIR / "DotGothic16-Regular.ttf"
+    return Filename.fromOsSpecific(str(font)).getFullpath()
 
 # JSONをパースする際、末端のリストが「すべて数値」かつ「長さが2」ならタプルに変換する関数
 def list_to_tuple_hook(obj):

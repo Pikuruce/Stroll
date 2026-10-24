@@ -7,6 +7,7 @@ import lib.src.components.game_object as go
 import lib.src.components.terrain as terrain
 from direct.task import Task
 import math
+from direct.gui.OnscreenText import OnscreenText
 
 from panda3d.core import (
     CollisionRay,
@@ -24,16 +25,21 @@ from panda3d.core import (
     OrthographicLens,
     Vec3,
     ClockObject,
-    LVector3f
+    LVector3f,
+    TextNode,
+    FontPool
 )
 
 from panda3d.physics import PhysicsCollisionHandler, ForceNode, LinearVectorForce
+
+backgrounds = {0: "Furvival_Background1.png", 
+               1: "Furvival_Background3.png",
+               2: "Furvival_Background2.png"}
 
 class cgprogram(ShowBase):
     def __init__(self):
         ShowBase.__init__(self)
         self.exitFunc=self.exit
-        self.accept('escape',self.userExit)
         self.disableMouse()
 
         # システム設定
@@ -45,7 +51,7 @@ class cgprogram(ShowBase):
         self.window_width = window_config["width"]
         self.window_height = window_config["height"]
         self.full_screen = window_config["fullscreen"]
-        self.setup_screen()
+        self.setupScreen()
 
         # カメラ設定
         camera_config = ac.get_camera_config()
@@ -59,7 +65,7 @@ class cgprogram(ShowBase):
         self.camera_return_speed = camera_config["return_speed"]
         self.camera_angle = 0.0
         self.camera_pitch = 0.0
-        self.setup_camera()
+        self.setupCamera()
 
         # ライト設定
         light_config = ac.get_light_config()
@@ -67,18 +73,18 @@ class cgprogram(ShowBase):
         self.color_g = light_config["color"]["g"]
         self.color_b = light_config["color"]["b"]
         self.color_a = light_config["color"]["a"]
-        self.setup_light()
+        self.setupLight()
 
         # バックグラウンド設定
         background_config = ac.get_background_config()
         self.background_start_x = background_config["start_x"]
         self.background_start_z = background_config["start_z"]
-        self.setup_background()
+        self.setupBackground()
 
         # 重力設定
         gravity_config = ac.get_gravity_config()
         self.force = gravity_config["force"]
-        self.setup_gravity()
+        self.setupGravity()
 
         # プレイヤー設定
         player_config = ac.get_player_config()
@@ -93,33 +99,38 @@ class cgprogram(ShowBase):
         self.dx = 0.0
         self.dy = 0.0
         self.normal = LVector3f(0, 0, 1)
-        self.setup_player()
-
-        # マップ設定
-        map_config = ac.get_map_config()
-        self.save_zone = map_config["save_zone"]
-        self.save_span = map_config["save_span"]
-        self.bulk_load = map_config["bulk_load"]
-        self.flower = None
-        self.terrain = terrain.Terrain(self.render, self.loader, self.cam, self.bulk_load, self.debug, self.save_zone, self.save_span)
-
-        # 操作キー設定
-        self.setup_key()
-
-        # 当たり判監視定設定
-        self.setup_collision()
+        self.setupPlayer()
 
         # オーディオ設定
         audio_config = ac.get_audio_config()
         self.master_volume = audio_config["master_volume"]
         self.bgm_volume = audio_config["bgm_volume"]
         self.se_volume = audio_config["se_volume"]
-        self.setup_audio()
+        self.setupAudio()
+
+        # マップ設定
+        map_config = ac.get_map_config()
+        self.save_span = map_config["save_span"]
+        self.bulk_load = map_config["bulk_load"]
+        self.flower = None
+        self.terrain = terrain.Terrain(self)
+
+        # 操作キー設定
+        self.setupKey()
+
+        # 当たり判監視定設定
+        self.setupCollision()
+
+        # フォント読み込み
+        self.game_font = FontPool.loadFont(path.font_file())
 
         # タスクスタート
+        self.clear = False
+        self.game_time = 0.0
+        self.bgm.play()
         self.taskMgr.add(self.update, "update")
 
-    def setup_screen(self) -> None:
+    def setupScreen(self) -> None:
         properties = WindowProperties()
         properties.setFullscreen(self.full_screen)
 
@@ -137,16 +148,29 @@ class cgprogram(ShowBase):
 
         self.win.requestProperties(properties)
 
-    def setup_audio(self) -> None:
-        # BGMを読み込む
-        self.bgm = self.loader.loadSfx("assets/sounds/bgm/marble soda.wav")
+    def setupAudio(self) -> None:
+        # BGM・SEを読み込む
+        self.bgm = self.loader.loadSfx(path.bgm_path("marble soda.wav"))
+        self.se_clear = self.loader.loadSfx(path.bgm_path("clear.wav"))
+        self.se_back = self.loader.loadSfx(path.se_path("se_back.wav"))
+        self.se_jump = self.loader.loadSfx(path.se_path("se_jump.wav"))
+        self.se_save = self.loader.loadSfx(path.se_path("se_save.wav"))
 
-        # ループ再生
+        # BGM設定
         self.bgm.setLoop(True)
         self.bgm.setVolume(self.master_volume * self.bgm_volume)
-        self.bgm.play()
+        self.se_clear.setLoop(False)
+        self.se_clear.setVolume(self.master_volume * self.bgm_volume)
 
-    def setup_camera(self) -> None:
+        # SE設定
+        self.se_back.setLoop(False)
+        self.se_back.setVolume(self.master_volume * self.se_volume)
+        self.se_jump.setLoop(False)
+        self.se_jump.setVolume(self.master_volume * self.se_volume)
+        self.se_save.setLoop(False)
+        self.se_save.setVolume(self.master_volume * self.se_volume)
+
+    def setupCamera(self) -> None:
         # カメラの障害物検出用レイ
         self.camera_ray = CollisionRay()
 
@@ -175,19 +199,20 @@ class cgprogram(ShowBase):
             + (self.camera_height - 0.5) ** 2
         )
 
-    def setup_background(self) -> None:
+    def setupBackground(self) -> None:
         lens=OrthographicLens()
         lens.setFilmSize(2,2)
         lens.setNearFar(-1000,1000)
 
         bgcam=Camera('background')
         bgcam.setLens(lens)
-        bgnp=NodePath(bgcam)
-        bgnp.setDepthTest(False)
-        bgnp.setDepthWrite(False)
-        bgdr=self.win.makeDisplayRegion()
-        bgdr.setCamera(bgnp)
-        bgdr.sort=-100
+        self.bgnp = NodePath(bgcam)
+        self.bgnp.setDepthTest(False)
+        self.bgnp.setDepthWrite(False)
+
+        bgdr = self.win.makeDisplayRegion()
+        bgdr.setCamera(self.bgnp)
+        bgdr.sort = -100
 
         fgcam=Camera('foreground')#1
         fgcam.setLens(lens)#1
@@ -200,13 +225,13 @@ class cgprogram(ShowBase):
 
 
         self.background = self.loadImage("Furvival_Background1.png", scale=(1.4, 1.0, 1.4))
-        self.background.reparentTo(bgnp)
+        self.background.reparentTo(self.bgnp)
 
         self.foreground1 = self.loadImage("Furvival_Foreground1.png", scale=(1.0, 1.0, 1.0))
         self.foreground1.reparentTo(fgnp)
         self.foreground1.setTransparency(True)
 
-    def setup_light(self) -> None:
+    def setupLight(self) -> None:
         light1=AmbientLight('light1')
         light1.setColor((self.color_r,self.color_g,self.color_b,self.color_a))
         light1=self.render.attachNewNode(light1)
@@ -218,7 +243,7 @@ class cgprogram(ShowBase):
         light2.setHpr(0,-60,0)
         self.render.setLight(light2)
 
-    def setup_gravity(self) -> None:
+    def setupGravity(self) -> None:
         # 物理システムの更新を有効化
         self.enableParticles()
 
@@ -228,7 +253,7 @@ class cgprogram(ShowBase):
         self.gravity_force = LinearVectorForce(0, 0, self.force)
         gravity_node.addForce(self.gravity_force)
 
-    def setup_player(self) -> None:
+    def setupPlayer(self) -> None:
         self.player = go.GameObject(parent=self.render, name="Furvival_Foco32", loader=self.loader, is_3d=False, use_gravity=True, physics_mgr=self.physicsMgr, gravity_force=self.gravity_force)
         self.player.setPos(0, 0, 2)
         self.player.createCollider("box", debug=self.debug, box_size=(-0.5, -0.5, 0, 0.5, 0.5, 1.0))
@@ -290,7 +315,7 @@ class cgprogram(ShowBase):
             self.physics_handler,
         )
 
-    def setup_key(self) -> None:
+    def setupKey(self) -> None:
         self.keys = {
             "up": False,
             "down": False,
@@ -333,8 +358,9 @@ class cgprogram(ShowBase):
         self.accept("arrow_down-up", self.setKey, ["down_arrow", False])
 
         self.accept("f11", self.switchFullscreen)
+        self.accept('escape',self.userExit)
 
-    def setup_collision(self) -> None:
+    def setupCollision(self) -> None:
         self.cTravEvent = CollisionTraverser()
         self.handler = CollisionHandlerEvent()
 
@@ -416,7 +442,7 @@ class cgprogram(ShowBase):
             other.on_collision = False
 
     def onCollisionRed(self, entry):
-        self.player.setPos(self.respown_point.x, self.respown_point.y, self.respown_point.z)
+        self.playerRespown()
 
     def onCollisionDanceFlower(self, entry):
         into_np = entry.getIntoNodePath()
@@ -434,9 +460,9 @@ class cgprogram(ShowBase):
             into_np = into_np.getParent()
 
         if flower is not None:
-            if self.flower is not None:
+            if self.flower is not None and self.flower != flower:
                 self.flower.sprite_animator.play(direction="front", motion="idle", loop=False)
-            self.respown_point = flower.getPos()
+                self.respown_point = flower.getPos()
             if flower.sprite_animator.play(direction="front", motion="dance", loop=True):
                 self.flower = flower
                 self.flower.ignitionFunc()
@@ -459,6 +485,111 @@ class cgprogram(ShowBase):
             raise RuntimeError(f"Texture loading failed: {img_path}")
         
         return OnscreenImage(image=texture, scale=scale)
+
+    def setBackground(self, number: int) -> None:
+        # 既存の背景画像を破棄
+        if self.background is not None:
+            self.background.destroy()
+
+        # 新しい背景画像を生成
+        self.background = self.loadImage(
+            backgrounds[number],
+            scale=(1.4, 1.0, 1.4),
+        )
+
+        # 背景用カメラの子ノードにする
+        self.background.reparentTo(self.bgnp)
+
+    def playerRespown(self) -> None:
+            self.player.setPos(self.respown_point.x, self.respown_point.y, self.respown_point.z)
+            self.player.actor_node.getPhysicsObject().setVelocity(
+            Vec3(0, 0, 0)
+            )
+            self.se_back.play()
+
+    def playSave(self) -> None:
+        self.se_save.play()
+
+    def playClear(self) -> None:
+        self.se_clear.play()
+
+    def playBGM(self) -> None:
+        self.bgm.play()
+    
+    def stopBGM(self) -> None:
+        self.bgm.stop()
+
+    def gameClear(self) -> None:
+        self.disableMovementKeys()
+        self.clear = True
+
+        # BGMがなければ、そのままクリアSEを再生
+        if self.bgm is None:
+            self.playClear()
+            return
+
+        self.bgm_start_volume = self.bgm.getVolume()
+        self.bgm_fade_duration = 2.0
+        self.bgm_fade_elapsed = 0.0
+
+        self.taskMgr.add(
+            self.fadeOutBGM,
+            "fadeOutBGM",
+        )
+
+    def showClearText(self) -> None:
+        self.clear_text = OnscreenText(
+            text=f"Thank you for playing\nTime {int(self.game_time)} s",
+            parent=self.aspect2d,
+            pos=(0, 0.5),
+            scale=0.12,
+            fg=(1, 1, 0, 1),
+            font=self.game_font,
+            align=TextNode.ACenter,
+            mayChange=False,
+        )
+        self.clear_sub_text = OnscreenText(
+            text=f"please push 'escape'",
+            parent=self.aspect2d,
+            pos=(0, 0.2),
+            scale=0.08,
+            fg=(1, 1, 0, 1),
+            font=self.game_font,
+            align=TextNode.ACenter,
+            mayChange=False,
+        )
+
+    def disableMovementKeys(self) -> None:
+        for key in ("w", "s", "a", "d"):
+            self.ignore(key)
+            self.ignore(f"{key}-up")
+        self.keys["up"] = False
+        self.keys["down"] = False
+        self.keys["left"] = False
+        self.keys["right"] = False
+        self.keys["space"] = False
+
+
+    def fadeOutBGM(self, task: Task) -> int:
+        dt = ClockObject.getGlobalClock().getDt()
+        self.bgm_fade_elapsed += dt
+
+        progress = min(
+            self.bgm_fade_elapsed / self.bgm_fade_duration,
+            1.0,
+        )
+
+        self.bgm.setVolume(
+            self.bgm_start_volume * (1.0 - progress)
+        )
+
+        if progress >= 1.0:
+            self.stopBGM()
+            self.playClear()
+            self.showClearText()
+            return Task.done
+
+        return Task.cont
 
     def playerMove(self, dt: float) -> None:
 
@@ -529,6 +660,9 @@ class cgprogram(ShowBase):
                 self.dy = self.normal.y * 1
                 dz = 0.8
 
+            # ジャンプSEはここに入れる方がいい
+            self.se_jump.play()
+
         if abs(screen_right) > abs(screen_forward):
             direction = "right" if screen_right > 0 else "left"
         elif abs(screen_forward) > 0:
@@ -543,11 +677,14 @@ class cgprogram(ShowBase):
         else:
             motion = "idle"
 
-        self.player.sprite_animator.play(
-            direction=direction,
-            motion=motion,
-            loop=True,
-        )
+        if self.clear and motion == "idle":
+            self.player.sprite_animator.play(direction="front", motion="hand_wave")
+        else:
+            self.player.sprite_animator.play(
+                direction=direction,
+                motion=motion,
+                loop=True,
+            )
 
 
         physical.setVelocity(
@@ -558,7 +695,7 @@ class cgprogram(ShowBase):
             )
         )
 
-    def playerShadow(self, dt: float):
+    def playerShadow(self, dt: float) -> None:
         player_pos = self.player.getPos()
 
         # プレイヤーの少し上から真下へレイを飛ばす
@@ -591,7 +728,6 @@ class cgprogram(ShowBase):
         else:
             # 地面がなければ影を消す
             self.player.shadow_node.hide()
-
     
     def cameraMove(self, dt: float):
         # 左右の回転
@@ -713,6 +849,9 @@ class cgprogram(ShowBase):
 
     def update(self, _task: Task) -> None:
         dt = ClockObject.getGlobalClock().getDt()
+        if not self.clear:
+            self.game_time += dt
+
         if self.jump_cooltime >= 0:
             self.jump_cooltime -= dt
 
@@ -724,10 +863,7 @@ class cgprogram(ShowBase):
         player_pos = self.player.getPos()
                 
         if player_pos.z < -5:
-            self.player.setPos(self.respown_point.x, self.respown_point.y, self.respown_point.z)
-            self.player.actor_node.getPhysicsObject().setVelocity(
-            Vec3(0, 0, 0)
-            )
+            self.playerRespown()
 
         self.cTrav.traverse(self.render)
 

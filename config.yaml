@@ -6,7 +6,7 @@ window:
 audio:
   master_volume: 1.0
   bgm_volume: 1.0
-  se_volume: 1.0
+  se_volume: 0.3
 
 camera:
   rotate_speed: 90.0
@@ -19,8 +19,8 @@ camera:
   return_speed: 60.0
 
 background:
-  start_x: 50
-  start_z: 0
+  start_x: 0
+  start_z: -50
 
 light:
   color:
@@ -39,7 +39,6 @@ player:
   inertia: 20.0
 
 map:
-  save_zone: 20
   save_span: 40
   bulk_load: true
 
@@ -51,3 +50,4 @@ assets:
   - images/
   - objects/
   - sounds/
+  - font/

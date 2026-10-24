@@ -22,18 +22,15 @@ from panda3d.core import (
 
 class Terrain():
 
-    def __init__(self, render, loader, cam, bulk_load: bool, debug: bool, save_zone: int, save_span: int):
-        self.render = render
-        self.loader = loader
-        self.cam = cam
-        self.bulk_load = bulk_load
-        self.debug = debug
-        self.save_zone = save_zone
-        self.save_span = save_span
+    def __init__(self, game):
+        self.game = game
+        self.bulk_load = game.bulk_load
+        self.debug = game.debug
+        self.save_span = game.save_span
         self.gameObjects = []
         self.trash = []
         self.auto_section = [self.sec1, self.sec2, self.sec3, self.sec4, self.sec5, self.sec6, self.sec7, self.sec8, self.sec9, self.sec10, self.sec11, self.sec12, self.sec13, self.sec14, self.sec15, self.sec16, self.sec17]
-        self.auto_section = [self.sec17]
+        #self.auto_section = [self.sec1]
         self.save_count = 0
         self.section_count = 0
 
@@ -160,7 +157,7 @@ class Terrain():
         for x in range(int(offset[0]) + int(point1[0]), int(offset[0]) + int(point1[0]) + int(point2[0] - point1[0]) + 1, step):
             for y in range(int(offset[1]) + int(point1[1]) + self.section_count * self.save_span, int(offset[1]) + int(point1[1]) + int(point2[1] - point1[1]) + self.section_count * self.save_span + 1, step):
                 for z in range(int(offset[2]) + int(point1[2]), int(offset[2]) + int(point1[2]) + int(point2[2] - point1[2]) + 1, step):
-                    obj = go.GameObject(parent=self.render, loader=self.loader, name=name, is_3d=True)
+                    obj = go.GameObject(parent=self.game.render, loader=self.game.loader, name=name, is_3d=True)
                     obj.setPos(x, y, z, init_pos=True)
                     obj.createCollider("box", debug=self.debug)
                     obj.collider.collision_np.node().setIntoCollideMask(
@@ -171,16 +168,17 @@ class Terrain():
 
     # キャラ(花)生成関数
     def generateFlower(self) -> go.GameObject:
-        flower = go.GameObject(self.render, self.loader, "Dance_Flower", False)
+        flower = go.GameObject(self.game.render, self.game.loader, "Dance_Flower", False)
         flower.setScale(1.5, 1.5, 1.5)
-        flower.setCamera(self.cam)
+        flower.setCamera(self.game.cam)
         flower.createCollider("box", self.debug, box_size=(-0.3, -0.3, 0, 0.3, 0.3, 0.5))
         flower.continuous = False
-        if not self.bulk_load:
-            def func(target: go.GameObject, dt: float) -> None:
-                self.nextSection()
-                target.self_func = None
-            flower.setSelfFunction(func)
+        flower_section = self.section_count 
+        def func(target: go.GameObject, dt: float) -> None:
+            self.nextSection()
+            self.flowerSEFunc(flower_section)(target, dt)
+            target.setSelfFunction(self.flowerSEFunc(flower_section))
+        flower.setSelfFunction(func)
         return flower
 
     # セーブ地帯追加
@@ -422,9 +420,20 @@ class Terrain():
             self.trash.clear()
             self.trash.extend(self.gameObjects)
             self.gameObjects.clear()
-        
-        self.set_section(self.auto_section[self.section_count])
-        self.generateSaveZone()
+
+        if self.section_count < len(self.auto_section):
+            self.set_section(self.auto_section[self.section_count])
+            self.generateSaveZone()
+
+    def flowerSEFunc(self, section_count: int):
+        def func(target: go.GameObject, dt: float) -> None:
+            background_number = section_count // math.ceil(len(self.auto_section) / 4) % 3
+            self.game.setBackground(background_number)
+            if section_count < len(self.auto_section):
+                self.game.playSave()
+            else:
+                self.game.gameClear()
+        return func
 
     def update(self, dt: float):
         for obj in self.trash + self.gameObjects:
