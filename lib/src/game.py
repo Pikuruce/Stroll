@@ -32,15 +32,10 @@ from panda3d.core import (
 
 from panda3d.physics import PhysicsCollisionHandler, ForceNode, LinearVectorForce
 
-backgrounds = {0: "Furvival_Background1.png", 
-               1: "Furvival_Background3.png",
-               2: "Furvival_Background2.png"}
-
 class cgprogram(ShowBase):
     def __init__(self):
         ShowBase.__init__(self)
         self.exitFunc=self.exit
-        self.disableMouse()
 
         # システム設定
         system_config = ac.get_system_config()
@@ -63,22 +58,20 @@ class cgprogram(ShowBase):
         self.camera_max_pitch = camera_config["max_pitch"]
         self.camera_collision_margin = camera_config["collision_margin"]
         self.camera_return_speed = camera_config["return_speed"]
+        self.mouse_sensitivity = camera_config["mouse_sensitivity"]
         self.camera_angle = 0.0
         self.camera_pitch = 0.0
+        self.mouse_center_x = 0
+        self.mouse_center_y = 0
+        self.centerMouse()
+        self.disableMouse()
         self.setupCamera()
-
-        # ライト設定
-        light_config = ac.get_light_config()
-        self.color_r = light_config["color"]["r"]
-        self.color_g = light_config["color"]["g"]
-        self.color_b = light_config["color"]["b"]
-        self.color_a = light_config["color"]["a"]
-        self.setupLight()
 
         # バックグラウンド設定
         background_config = ac.get_background_config()
         self.background_start_x = background_config["start_x"]
         self.background_start_z = background_config["start_z"]
+        self.background_data = path.background_data()
         self.setupBackground()
 
         # 重力設定
@@ -133,6 +126,7 @@ class cgprogram(ShowBase):
     def setupScreen(self) -> None:
         properties = WindowProperties()
         properties.setFullscreen(self.full_screen)
+        properties.setCursorHidden(True)
 
         if self.full_screen:
             # ディスプレイの解像度を指定する
@@ -200,6 +194,19 @@ class cgprogram(ShowBase):
         )
 
     def setupBackground(self) -> None:
+        self.light1 = AmbientLight("light1")
+        self.light1.setColor((1.0, 1.0, 1.0, 1.0))
+
+        self.light1_np = self.render.attachNewNode(self.light1)
+        self.render.setLight(self.light1_np)
+
+        self.light2 = DirectionalLight("light2")
+        self.light2.setColor((0.8, 0.8, 0.8, 1.0))
+
+        self.light2_np = self.render.attachNewNode(self.light2)
+        self.light2_np.setHpr(0, -60, 0)
+        self.render.setLight(self.light2_np)
+
         lens=OrthographicLens()
         lens.setFilmSize(2,2)
         lens.setNearFar(-1000,1000)
@@ -230,18 +237,6 @@ class cgprogram(ShowBase):
         self.foreground1 = self.loadImage("Furvival_Foreground1.png", scale=(1.0, 1.0, 1.0))
         self.foreground1.reparentTo(fgnp)
         self.foreground1.setTransparency(True)
-
-    def setupLight(self) -> None:
-        light1=AmbientLight('light1')
-        light1.setColor((self.color_r,self.color_g,self.color_b,self.color_a))
-        light1=self.render.attachNewNode(light1)
-        self.render.setLight(light1)
-
-        light2=DirectionalLight('light2')
-        light2.setColor((0.8,0.8,0.8,1))
-        light2=self.render.attachNewNode(light2)
-        light2.setHpr(0,-60,0)
-        self.render.setLight(light2)
 
     def setupGravity(self) -> None:
         # 物理システムの更新を有効化
@@ -491,11 +486,19 @@ class cgprogram(ShowBase):
         if self.background is not None:
             self.background.destroy()
 
+        data = self.background_data["backgrounds"][str(number)]
+
         # 新しい背景画像を生成
         self.background = self.loadImage(
-            backgrounds[number],
+            data["name"],
             scale=(1.4, 1.0, 1.4),
         )
+
+        r = data["color"]["r"]
+        g = data["color"]["g"]
+        b = data["color"]["b"]
+        a = data["color"]["a"]
+        self.light1.setColor((r, g, b, a))
 
         # 背景用カメラの子ノードにする
         self.background.reparentTo(self.bgnp)
@@ -560,7 +563,7 @@ class cgprogram(ShowBase):
         )
 
     def disableMovementKeys(self) -> None:
-        for key in ("w", "s", "a", "d"):
+        for key in ("w", "s", "a", "d", "space"):
             self.ignore(key)
             self.ignore(f"{key}-up")
         self.keys["up"] = False
@@ -568,6 +571,16 @@ class cgprogram(ShowBase):
         self.keys["left"] = False
         self.keys["right"] = False
         self.keys["space"] = False
+
+    def centerMouse(self) -> None:
+        self.mouse_center_x = self.win.getXSize() // 2
+        self.mouse_center_y = self.win.getYSize() // 2
+
+        self.win.movePointer(
+            0,
+            self.mouse_center_x,
+            self.mouse_center_y,
+        )
 
 
     def fadeOutBGM(self, task: Task) -> int:
@@ -730,25 +743,42 @@ class cgprogram(ShowBase):
             self.player.shadow_node.hide()
     
     def cameraMove(self, dt: float):
-        # 左右の回転
+        # マウスの移動量を取得
+        mouse_dx = 0.0
+        mouse_dy = 0.0
+
+        if self.mouseWatcherNode.hasMouse():
+            mouse = self.mouseWatcherNode.getMouse()
+
+            # マウス座標は画面中央が (0, 0)
+            mouse_dx = mouse.x
+            mouse_dy = mouse.y
+
+            # 次のフレームに向けて中央に戻す
+            self.centerMouse()
+
+        # 左右の回転：矢印キー + マウス
         rotate_input = (
-            int(self.keys["left_arrow"])
-            - int(self.keys["right_arrow"])
+            int(self.keys["right_arrow"])
+            - int(self.keys["left_arrow"])
+            
         )
 
-        self.camera_angle -= (
+        self.camera_angle += (
             rotate_input * self.camera_rotate_speed * dt
         )
+        self.camera_angle += mouse_dx * self.mouse_sensitivity
 
-        # 上下の回転
+        # 上下の回転：矢印キー + マウス
         pitch_input = (
             int(self.keys["up_arrow"])
             - int(self.keys["down_arrow"])
         )
 
-        self.camera_pitch += (
+        self.camera_pitch -= (
             pitch_input * self.camera_pitch_speed * dt
         )
+        self.camera_pitch -= mouse_dy * self.mouse_sensitivity
 
         # 上下の角度を制限
         self.camera_pitch = max(

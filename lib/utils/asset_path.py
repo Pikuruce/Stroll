@@ -90,3 +90,11 @@ def list_to_tuple_hook(obj):
                     new_list.append(item)
             obj[key] = new_list
     return obj
+
+def background_data() -> dict:
+    background_file = IMAGE_DIR / "background.json"
+
+    with open(background_file) as f:
+        json_data = json.load(f)
+
+    return json_data

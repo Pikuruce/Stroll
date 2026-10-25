@@ -24,9 +24,6 @@ def get_camera_config() -> dict:
 def get_background_config() -> dict:
     return config["background"]
 
-def get_light_config() -> dict:
-    return config["light"]
-
 def get_gravity_config() -> dict:
     return config["gravity"]
 

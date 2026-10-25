@@ -6,10 +6,11 @@ window:
 audio:
   master_volume: 1.0
   bgm_volume: 1.0
-  se_volume: 0.3
+  se_volume: 0.5
 
 camera:
   rotate_speed: 90.0
+  mouse_sensitivity: 120
   distance: 20.0
   height: 10.0
   pitch_speed: 60.0
@@ -21,13 +22,6 @@ camera:
 background:
   start_x: 0
   start_z: -50
-
-light:
-  color:
-    r: 0.6
-    g: 0.6
-    b: 0.6
-    a: 1
 
 gravity:
   force: -35
