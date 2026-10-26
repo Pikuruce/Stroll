@@ -14,8 +14,9 @@ class Terrain():
         self.gameObjects = []
         self.trash = []
         self.auto_section = [self.sec1, self.sec2, self.sec3, self.sec4, self.sec5, self.sec6, self.sec7, self.sec8, self.sec9, self.sec10,
-                            self.sec11, self.sec12, self.sec13, self.sec14, self.sec15, self.sec16, self.sec17, self.sec18, self.sec19, self.sec20]
-        self.auto_section = [self.sec21]
+                            self.sec11, self.sec12, self.sec13, self.sec14, self.sec15, self.sec16, self.sec17, self.sec18, self.sec19, self.sec20,
+                            self.sec21, self.sec22, self.sec23, self.sec24]
+        #self.auto_section = [self.sec24]
         self.save_count = 0
         self.section_count = 0
 
@@ -468,14 +469,105 @@ class Terrain():
     def sec21(self) -> None:
         self.gameObjects.extend(self.plane(name="Stone", offset=(0, 4, 0), point1=(0, 0, 0), point2=(0, 0, 12), step=6))
         self.gameObjects.extend(self.plane(name="Stone", offset=(-4, 10, 0), point1=(0, 0, 0), point2=(8, 0, 16)))
-        self.gameObjects.extend(self.plane(name="Stone", offset=(0, 16, 8), point1=(0, 0, 0), point2=(0, 0, 16)))
+        self.gameObjects.extend(self.plane(name="Stone", offset=(-4, 16, 8), point1=(0, 0, 0), point2=(8, 0, 16)))
         self.gameObjects.extend(self.plane(name="Stone", offset=(0, 16, 0), point1=(0, 0, 0), point2=(0, 0, 0)))
-        self.gameObjects.extend(self.plane(name="Red", offset=(0, 16, 6), point1=(0, 0, 0), point2=(0, 0, 0)))
-        self.gameObjects.extend(self.plane(name="Red", offset=(0, 14, 8), point1=(0, 0, 0), point2=(0, 0, 0)))
-        self.gameObjects.extend(self.plane(name="Red", offset=(0, 12, 16), point1=(0, 0, 0), point2=(0, 0, 0)))
+        self.gameObjects.extend(self.plane(name="Red", offset=(-4, 16, 6), point1=(0, 0, 0), point2=(8, 0, 0)))
+        self.gameObjects.extend(self.plane(name="Red", offset=(-4, 14, 8), point1=(0, 0, 0), point2=(8, 0, 0)))
+        self.gameObjects.extend(self.plane(name="Red", offset=(-4, 12, 16), point1=(0, 0, 0), point2=(8, 0, 0)))
         self.gameObjects.extend(self.plane(name="Red", offset=(0, 22, 4), point1=(0, 0, 0), point2=(0, 0, 20), step=8))
         self.gameObjects.extend(self.plane(name="Stone", offset=(0, 22, 6), point1=(0, 0, 0), point2=(0, 0, 24), step=8))
         self.gameObjects.extend(self.plane(name="Red", offset=(-4, 28, 0), point1=(0, 0, 0), point2=(8, 0, 28)))
+
+    # 隙間くぐり
+    def sec22(self) -> None:
+        self.gameObjects.extend(self.plane(name="Red", offset=(-4, 8, 0), point1=(0, 0, 0), point2=(8, 0, 4)))
+        red1 = self.plane(name="Red", offset=(-4, 8, 12), point1=(0, 0, 0), point2=(8, 0, 6))
+        self.gameObjects.extend(self.plane(name="Red", offset=(-2, 14, -2), point1=(0, 0, 0), point2=(4, 0, 0)))
+        dart1 = self.plane(name="Dart", offset=(-2, 14, 0), point1=(0, 0, 0), point2=(4, 0, 0))
+        self.setFunc(
+            red1,
+            lambda: self.moveAround([(0, 0, -6)], speed=2)
+        )
+        self.setFunc(
+            dart1,
+            lambda: self.moveByCollision([(0, 0, -4)], speed=6)
+        )
+        self.gameObjects.extend(red1)
+        self.gameObjects.extend(dart1)
+
+        self.gameObjects.extend(self.plane(name="Red", offset=(-4, 20, 0), point1=(0, 0, 0), point2=(8, 0, 4)))
+        red2 = self.plane(name="Red", offset=(-4, 20, 12), point1=(0, 0, 0), point2=(8, 0, 6))
+        self.gameObjects.extend(self.plane(name="Red", offset=(-2, 26, -2), point1=(0, 0, 0), point2=(4, 0, 0)))
+        dart2 = self.plane(name="Dart", offset=(-2, 26, 0), point1=(0, 0, 0), point2=(4, 0, 0))
+        self.setFunc(
+            red2,
+            lambda: self.moveAround([(0, 0, -6)], speed=4)
+        )
+        self.setFunc(
+            dart2,
+            lambda: self.moveByCollision([(0, 0, -4)], speed=6)
+        )
+        self.gameObjects.extend(red2)
+        self.gameObjects.extend(dart2)
+
+        self.gameObjects.extend(self.plane(name="Red", offset=(-4, 32, 0), point1=(0, 0, 0), point2=(8, 0, 4)))
+        red2 = self.plane(name="Red", offset=(-4, 32, 12), point1=(0, 0, 0), point2=(8, 0, 6))
+        self.setFunc(
+            red2,
+            lambda: self.moveAround([(0, 0, -6)], speed=6)
+        )
+        self.gameObjects.extend(red2)
+
+    # 馬飛び
+    def sec23(self) -> None:
+        self.gameObjects.extend(self.plane(name="Grass", offset=(0, 4, 0), point1=(0, 0, 0), point2=(0, 32, 0), step=6))
+        self.gameObjects.extend(self.plane(name="Red", offset=(0, 5, 1), point1=(0, 0, 0), point2=(0, 0, 0)))
+        self.gameObjects.extend(self.plane(name="Red", offset=(0, 11, 1), point1=(0, 0, 0), point2=(0, 0, 0)))
+        self.gameObjects.extend(self.plane(name="Red", offset=(0, 17, 2), point1=(0, 0, 0), point2=(0, 0, 0)))
+        self.gameObjects.extend(self.plane(name="Red", offset=(0, 23, 2), point1=(0, 0, 0), point2=(0, 0, 0)))
+        self.gameObjects.extend(self.plane(name="Red", offset=(0, 29, 3), point1=(0, 0, 0), point2=(0, 0, 0)))
+        self.gameObjects.extend(self.plane(name="Red", offset=(0, 35, 3), point1=(0, 0, 0), point2=(0, 0, 0)))
+
+    # 斜め
+    def sec24(self) -> None:
+        self.gameObjects.extend(self.plane(name="Grass", offset=(-2, 4, 0), point1=(0, 0, 0), point2=(4, 0, 0)))
+        self.gameObjects.extend(self.plane(name="Dart", offset=(-2, 6, 0), point1=(0, 0, 0), point2=(4, 12, 0)))
+        self.gameObjects.extend(self.plane(name="Grass", offset=(-2, 20, 0), point1=(0, 0, 0), point2=(4, 0, 0)))
+        self.gameObjects.extend(self.plane(name="Dart", offset=(-2, 22, 0), point1=(0, 0, 0), point2=(4, 12, 0)))
+        self.gameObjects.extend(self.plane(name="Grass", offset=(-2, 36, 0), point1=(0, 0, 0), point2=(4, 0, 0)))
+        red1 = self.plane(name="Red", offset=(-4, 4, -2), point1=(0, 0, 0), point2=(8, 0, 0))
+        red2 = self.plane(name="Red", offset=(-4, 36, -2), point1=(0, 0, 0), point2=(8, 0, 0))
+        red3 = self.plane(name="Red", offset=(-4, 20, -2), point1=(0, 0, 0), point2=(8, 0, 0))
+        red4 = self.plane(name="Red", offset=(-4, 12, 4), point1=(0, 0, 0), point2=(8, 0, 0))
+        red5 = self.plane(name="Red", offset=(-4, 28, 4), point1=(0, 0, 0), point2=(8, 0, 0))
+        self.setFunc(
+            red1,
+            lambda: self.moveAround([(0, 8, 6), (0, 8, -6), (0, 8, 6), (0, 8, -6)], speed=4)
+        )
+        self.setFunc(
+            red2,
+            lambda: self.moveAround([(0, -8, 6), (0, -8, -6), (0, -8, 6), (0, -8, -6)], speed=4)
+        )
+        self.setFunc(
+            red3,
+            lambda: self.moveAround([(0, 8, 6), (0, 8, -6), (0, -8, 6), (0, -8, -6), (0, -8, 6), (0, -8, -6)], speed=4)
+        )
+        self.setFunc(
+            red4,
+            lambda: self.moveAround([(0, -8, -6), (0, 8, 6), (0, 8, -6), (0, 8, 6), (0, 8, -6), (0, -8, 6), (0, -8, -6)], speed=4)
+        )
+        self.setFunc(
+            red5,
+            lambda: self.moveAround([(0, -8, -6), (0, -8, 6), (0, -8, -6), (0, 8, 6), (0, 8, -6), (0, 8, 6), (0, 8, -6)], speed=4)
+        )
+        self.gameObjects.extend(red1)
+        self.gameObjects.extend(red2)
+        self.gameObjects.extend(red3)
+        self.gameObjects.extend(red4)
+        self.gameObjects.extend(red5)
+
+    # 
+
 
     def nextSection(self) -> None:
         if not self.bulk_load:

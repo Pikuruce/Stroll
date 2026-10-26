@@ -41,6 +41,9 @@ class cgprogram(ShowBase):
         system_config = ac.get_system_config()
         self.debug = system_config["debug_mode"]
 
+        # フォント読み込み
+        self.game_font = FontPool.loadFont(path.font_file())
+
         # 画面設定
         window_config = ac.get_window_config()
         self.window_width = window_config["width"]
@@ -113,9 +116,6 @@ class cgprogram(ShowBase):
 
         # 当たり判監視定設定
         self.setupCollision()
-
-        # フォント読み込み
-        self.game_font = FontPool.loadFont(path.font_file())
 
         # タスクスタート
         self.clear = False
@@ -237,6 +237,17 @@ class cgprogram(ShowBase):
         self.foreground1 = self.loadImage("Furvival_Foreground1.png", scale=(1.0, 1.0, 1.0))
         self.foreground1.reparentTo(fgnp)
         self.foreground1.setTransparency(True)
+
+        self.explain_text = OnscreenText(
+            text=f"WASD: move   SPACE: jump   ARROW or MOUSE: camera",
+            parent=self.foreground1,
+            pos=(-0.5, -0.95),
+            scale=0.03,
+            fg=(1, 1, 0, 0.35),
+            font=self.game_font,
+            align=TextNode.ACenter,
+            mayChange=False,
+        )
 
     def setupGravity(self) -> None:
         # 物理システムの更新を有効化

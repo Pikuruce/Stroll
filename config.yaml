@@ -6,7 +6,7 @@ window:
 audio:
   master_volume: 1.0
   bgm_volume: 1.0
-  se_volume: 0.5
+  se_volume: 0.7
 
 camera:
   rotate_speed: 90.0
