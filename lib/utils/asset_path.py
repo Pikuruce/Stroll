@@ -61,7 +61,7 @@ def se_path(*parts: str) -> Filename:
     return Filename.fromOsSpecific(str(se_dir.joinpath(*parts)))
 
 def motion_data() -> dict:
-    motion_file = ASSET_DIR / "motion.json"
+    motion_file = ASSET_DIR / "animation.json"
 
     with open(motion_file) as f:
         json_data = json.load(f)

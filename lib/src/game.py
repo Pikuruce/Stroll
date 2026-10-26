@@ -195,7 +195,8 @@ class cgprogram(ShowBase):
 
     def setupBackground(self) -> None:
         self.light1 = AmbientLight("light1")
-        self.light1.setColor((1.0, 1.0, 1.0, 1.0))
+        color_data = self.background_data["backgrounds"]["0"]["color"]
+        self.light1.setColor((color_data["r"], color_data["g"], color_data["b"], color_data["a"]))
 
         self.light1_np = self.render.attachNewNode(self.light1)
         self.render.setLight(self.light1_np)
@@ -456,7 +457,7 @@ class cgprogram(ShowBase):
 
         while not into_np.isEmpty():
             flower = next(
-                (obj for obj in self.terrain.gameObjects + self.terrain.trash if obj.node == into_np),
+                (obj for obj in self.terrain.game_objects + self.terrain.previous_objects if obj.node == into_np),
                 None
             )
 
