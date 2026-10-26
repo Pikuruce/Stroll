@@ -241,7 +241,7 @@ class cgprogram(ShowBase):
         self.explain_text = OnscreenText(
             text=f"WASD: move   SPACE: jump   ARROW or MOUSE: camera   F11: fullscreen",
             parent=self.foreground1,
-            pos=(-0.5, -0.95),
+            pos=(-0.45, -0.95),
             scale=0.03,
             fg=(1, 1, 0, 0.35),
             font=self.game_font,
