@@ -52,6 +52,9 @@ class Terrain():
         for obj in self.previous_objects + self.game_objects:
             obj.node.show()
 
+    def getGameObjects(self) -> list[go.GameObject]:
+        return self.game_objects + self.previous_objects
+
     # 関数セット用関数
     def setFunc(
         self,
@@ -816,5 +819,5 @@ class Terrain():
         return obj
 
     def update(self, dt: float):
-        for obj in self.game_objects + self.previous_objects:
+        for obj in self.getGameObjects():
             obj.update(dt)

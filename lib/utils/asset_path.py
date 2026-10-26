@@ -1,8 +1,8 @@
 from pathlib import Path
-from panda3d.core import Filename
 import yaml
 import json
 from typing import Any
+from panda3d.core import Filename
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 ASSET_DIR = PROJECT_DIR / "assets"

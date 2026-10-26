@@ -1,4 +1,3 @@
-import random
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.showbase.ShowBase import ShowBase
 import lib.utils.asset_path as path
@@ -240,7 +239,7 @@ class cgprogram(ShowBase):
         self.foreground1.setTransparency(True)
 
         self.explain_text = OnscreenText(
-            text=f"WASD: move   SPACE: jump   ARROW or MOUSE: camera",
+            text=f"WASD: move   SPACE: jump   ARROW or MOUSE: camera   F11: fullscreen",
             parent=self.foreground1,
             pos=(-0.5, -0.95),
             scale=0.03,
@@ -457,7 +456,7 @@ class cgprogram(ShowBase):
 
         while not into_np.isEmpty():
             flower = next(
-                (obj for obj in self.terrain.game_objects + self.terrain.previous_objects if obj.node == into_np),
+                (obj for obj in self.terrain.getGameObjects() if obj.node == into_np),
                 None
             )
 
@@ -520,7 +519,13 @@ class cgprogram(ShowBase):
             self.player.actor_node.getPhysicsObject().setVelocity(
             Vec3(0, 0, 0)
             )
-            self.se_back.play()
+            self.playBack()
+
+    def playJump(self) -> None:
+        self.se_jump.play()
+
+    def playBack(self) -> None:
+        self.se_back.play()
 
     def playSave(self) -> None:
         self.se_save.play()
@@ -685,8 +690,8 @@ class cgprogram(ShowBase):
                 self.dy = self.normal.y * 1
                 dz = 0.8
 
-            # ジャンプSEはここに入れる方がいい
-            self.se_jump.play()
+            # ジャンプSE
+            self.playJump()
 
         if abs(screen_right) > abs(screen_forward):
             direction = "right" if screen_right > 0 else "left"
