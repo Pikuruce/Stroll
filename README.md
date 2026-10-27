@@ -103,6 +103,7 @@ YAML形式の設定ファイルから、ゲームの読み込み方法やデバ�
 ```text
 Stroll/
 ├── main.py
+├── config.yaml
 ├── assets/
 │   ├── characters/
 │   ├── font/
