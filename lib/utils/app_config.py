@@ -6,32 +6,26 @@ PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 with open(PROJECT_DIR / "config.yaml", encoding="utf-8") as f:
     config = yaml.safe_load(f)
 
-def get_window_size() -> tuple[int, int]:
-    return config["window"]["width"], config["window"]["height"]
+def getSystemConfig() -> bool:
+    return config["system"]
 
-def get_debug_mode() -> bool:
-    return config["system"]["debug_mode"]
-
-def get_window_config() -> dict:
+def getWindowConfig() -> dict:
     return config["window"]
 
-def get_audio_config() -> dict:
+def getAudioConfig() -> dict:
     return config["audio"]
 
-def get_camera_config() -> dict:
+def getCameraConfig() -> dict:
     return config["camera"]
 
-def get_background_config() -> dict:
+def getBackgroundConfig() -> dict:
     return config["background"]
 
-def get_gravity_config() -> dict:
+def getGravityConfig() -> dict:
     return config["gravity"]
 
-def get_player_config() -> dict:
+def getPlayerConfig() -> dict:
     return config["player"]
 
-def get_map_config() -> dict:
+def getMapConfig() -> dict:
     return config["map"]
-
-def get_system_config() -> dict:
-    return config["system"]

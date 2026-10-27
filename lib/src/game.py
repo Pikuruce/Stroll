@@ -31,27 +31,27 @@ from panda3d.core import (
 
 from panda3d.physics import PhysicsCollisionHandler, ForceNode, LinearVectorForce
 
-class cgprogram(ShowBase):
+class Stroll(ShowBase):
     def __init__(self):
         ShowBase.__init__(self)
         self.exitFunc=self.exit
 
         # システム設定
-        system_config = ac.get_system_config()
+        system_config = ac.getSystemConfig()
         self.debug = system_config["debug_mode"]
 
         # フォント読み込み
         self.game_font = FontPool.loadFont(path.font_file())
 
         # 画面設定
-        window_config = ac.get_window_config()
+        window_config = ac.getWindowConfig()
         self.window_width = window_config["width"]
         self.window_height = window_config["height"]
         self.full_screen = window_config["fullscreen"]
         self.setupScreen()
 
         # カメラ設定
-        camera_config = ac.get_camera_config()
+        camera_config = ac.getCameraConfig()
         self.camera_rotate_speed = camera_config["rotate_speed"]
         self.camera_distance = camera_config["distance"]
         self.camera_height = camera_config["height"]
@@ -70,19 +70,19 @@ class cgprogram(ShowBase):
         self.setupCamera()
 
         # バックグラウンド設定
-        background_config = ac.get_background_config()
+        background_config = ac.getBackgroundConfig()
         self.background_start_x = background_config["start_x"]
         self.background_start_z = background_config["start_z"]
         self.background_data = path.background_data()
-        self.setupBackground()
+        self.setupBackgroundEtc()
 
         # 重力設定
-        gravity_config = ac.get_gravity_config()
+        gravity_config = ac.getGravityConfig()
         self.force = gravity_config["force"]
         self.setupGravity()
 
         # プレイヤー設定
-        player_config = ac.get_player_config()
+        player_config = ac.getPlayerConfig()
         self.move_speed = player_config["move_speed"]
         self.max_fall_speed = player_config["max_fall_speed"]
         self.jump_power = player_config["jump_power"]
@@ -97,14 +97,14 @@ class cgprogram(ShowBase):
         self.setupPlayer()
 
         # オーディオ設定
-        audio_config = ac.get_audio_config()
+        audio_config = ac.getAudioConfig()
         self.master_volume = audio_config["master_volume"]
         self.bgm_volume = audio_config["bgm_volume"]
         self.se_volume = audio_config["se_volume"]
         self.setupAudio()
 
         # マップ設定
-        map_config = ac.get_map_config()
+        map_config = ac.getMapConfig()
         self.save_span = map_config["save_span"]
         self.bulk_load = map_config["bulk_load"]
         self.flower = None
@@ -128,7 +128,6 @@ class cgprogram(ShowBase):
         properties.setCursorHidden(True)
 
         if self.full_screen:
-            # ディスプレイの解像度を指定する
             properties.setSize(
                 self.pipe.getDisplayWidth(),
                 self.pipe.getDisplayHeight(),
@@ -192,7 +191,7 @@ class cgprogram(ShowBase):
             + (self.camera_height - 0.5) ** 2
         )
 
-    def setupBackground(self) -> None:
+    def setupBackgroundEtc(self) -> None:
         self.light1 = AmbientLight("light1")
         color_data = self.background_data["backgrounds"]["0"]["color"]
         self.light1.setColor((color_data["r"], color_data["g"], color_data["b"], color_data["a"]))
@@ -328,10 +327,10 @@ class cgprogram(ShowBase):
             "left": False,
             "right": False,
             "space": False,
-            "right_arrow": False,
-            "left_arrow": False,
-            "up_arrow": False,
-            "down_arrow": False,
+            "arrow_right": False,
+            "arrow_left": False,
+            "arrow_up": False,
+            "arrow_down": False,
         }
 
         self.respown_point = self.player.getPos()
@@ -351,17 +350,17 @@ class cgprogram(ShowBase):
         self.accept("space", self.setKey, ["space", True])
         self.accept("space-up", self.setKey, ["space", False])
 
-        self.accept("arrow_right", self.setKey, ["right_arrow", True])
-        self.accept("arrow_right-up", self.setKey, ["right_arrow", False])
+        self.accept("arrow_right", self.setKey, ["arrow_right", True])
+        self.accept("arrow_right-up", self.setKey, ["arrow_right", False])
 
-        self.accept("arrow_left", self.setKey, ["left_arrow", True])
-        self.accept("arrow_left-up", self.setKey, ["left_arrow", False])
+        self.accept("arrow_left", self.setKey, ["arrow_left", True])
+        self.accept("arrow_left-up", self.setKey, ["arrow_left", False])
 
-        self.accept("arrow_up", self.setKey, ["up_arrow", True])
-        self.accept("arrow_up-up", self.setKey, ["up_arrow", False])
+        self.accept("arrow_up", self.setKey, ["arrow_up", True])
+        self.accept("arrow_up-up", self.setKey, ["arrow_up", False])
 
-        self.accept("arrow_down", self.setKey, ["down_arrow", True])
-        self.accept("arrow_down-up", self.setKey, ["down_arrow", False])
+        self.accept("arrow_down", self.setKey, ["arrow_down", True])
+        self.accept("arrow_down-up", self.setKey, ["arrow_down", False])
 
         self.accept("f11", self.switchFullscreen)
         self.accept('escape',self.userExit)
@@ -776,8 +775,8 @@ class cgprogram(ShowBase):
 
         # 左右の回転：矢印キー + マウス
         rotate_input = (
-            int(self.keys["right_arrow"])
-            - int(self.keys["left_arrow"])
+            int(self.keys["arrow_right"])
+            - int(self.keys["arrow_left"])
             
         )
 
@@ -788,8 +787,8 @@ class cgprogram(ShowBase):
 
         # 上下の回転：矢印キー + マウス
         pitch_input = (
-            int(self.keys["up_arrow"])
-            - int(self.keys["down_arrow"])
+            int(self.keys["arrow_up"])
+            - int(self.keys["arrow_down"])
         )
 
         self.camera_pitch -= (
