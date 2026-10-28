@@ -2,6 +2,7 @@
     "backgrounds": {
         "0": {
             "name": "Furvival_Background1.png",
+            "scale": [1.4, 1.0, 1.4],
             "color": {
                 "r": 0.6,
                 "g": 0.6,
@@ -11,6 +12,7 @@
         },
         "1": {
             "name": "Furvival_Background3.png",
+            "scale": [1.4, 1.0, 1.4],
             "color": {
                 "r": 0.4,
                 "g": 0.4,
@@ -20,10 +22,21 @@
         },
         "2": {
             "name": "Furvival_Background2.png",
+            "scale": [1.4, 1.0, 1.4],
             "color": {
                 "r": 0.2,
                 "g": 0.1,
                 "b": 0.1,
+                "a": 1.0
+            }
+        },
+        "3": {
+            "name": "Stroll_Title_Screen.png",
+            "scale": [1.0, 1.0, 1.0],
+            "color": {
+                "r": 1.0,
+                "g": 1.0,
+                "b": 1.0,
                 "a": 1.0
             }
         }

@@ -26,6 +26,8 @@ class Terrain():
             self.sec25, self.sec26, self.secLast
         ]
 
+        self.auto_section = [self.sec16]
+
         self.save_count = 0
         # 生成済みのセクション数
         self.section_count = 0
@@ -176,9 +178,7 @@ class Terrain():
                     obj = go.GameObject(parent=self.game.render, loader=self.game.loader, name=name, is_3d=True)
                     obj.setPos(x, y, z, init_pos=True)
                     obj.createCollider("box", debug=self.debug)
-                    obj.collider.collision_np.node().setIntoCollideMask(
-                        BitMask32.bit(1)
-                    )
+                    obj.collider.collision_np.node().setIntoCollideMask(self.game.terrain_mask)
                     obj_list.append(obj)
         return obj_list
 
@@ -197,6 +197,7 @@ class Terrain():
             self.debug,
             box_size=(-0.3, -0.3, 0, 0.3, 0.3, 0.5),
         )
+        flower.collider.collision_np.node().setIntoCollideMask(self.game.flower_mask)
         flower.continuous = False
 
         # このセーブポイントが担当するセクション番号

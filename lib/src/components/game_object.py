@@ -6,6 +6,7 @@ from panda3d.core import (
     NodePath,
     CardMaker,
     TransparencyAttrib,
+    BitMask32
 )
 from panda3d.physics import ActorNode
 
@@ -69,17 +70,22 @@ class GameObject:
         self.on_collision = False
 
 
-    def createCollider(self, collision_type: str,
-                       debug: bool, 
-                       sphere_size: tuple = (0, 0, 0.5, 0.45), 
-                       box_size: tuple = (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),) -> None:
+    def createCollider(
+        self,
+        collision_type: str,
+        debug: bool,
+        sphere_size: tuple = (0, 0, 0.5, 0.45),
+        box_size: tuple = (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),
+        into_mask=BitMask32.bit(1),
+    ) -> None:
         self.collider = col.Collider(
             parent=self.node,
             name=self.name,
             collision_type=collision_type,
             debug=debug,
             sphere_size=sphere_size,
-            box_size=box_size
+            box_size=box_size,
+            into_mask=into_mask,
         )
 
     def load3DModel(
