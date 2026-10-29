@@ -45,6 +45,10 @@
 ```bash
 make run
 ```
+または
+```bash
+uv run main.py
+```
 
 ### トラブルシューティング
 
