@@ -113,6 +113,9 @@ class Stroll(ShowBase):
         self.normal = LVector3f(0, 0, 1)
         self.ground_pos = LVector3f(0, 0, 0)
         self.player_pos = LVector3f(0, 0, 0)
+        self.is_ground = False
+        self.is_wall = False
+        self.wall_normal = None
 
         # マップ設定
         map_config = ac.getMapConfig()
@@ -315,27 +318,90 @@ class Stroll(ShowBase):
         self.player_light_np.setPos(0, 0, 0)
         self.player_light_np.setHpr(0, 0, 0)
 
-        # 地面検出用のCollisionRay
-        self.shadow_ray = CollisionRay(0, 0, 0, 0, 0, -1)
+        # Ray による衝突判定
+        # 16本の横向き Ray + 5本の下向き Ray
+        self.ray_nodes = {}
+        self.ray_queues = {}
+        self.ray_traverser = CollisionTraverser()
 
-        self.shadow_ray_node = CollisionNode("shadow-ray")
-        self.shadow_ray_node.addSolid(self.shadow_ray)
+        # プレイヤーの半分の幅・奥行きと高さ
+        half_x = 0.25
+        half_y = 0.25
+        height = 0.9
 
-        # 地面専用の衝突マスク
-        self.shadow_ray_node.setFromCollideMask(self.terrain_mask)
-        self.shadow_ray_node.setIntoCollideMask(BitMask32.allOff())
+        # Ray の定義: (名前, 原点オフセット, 方向)
+        ray_defs = []
 
-        self.shadow_ray_np = self.render.attachNewNode(
-            self.shadow_ray_node
-        )
+        # 横向き Ray：各側面の四隅
+        # X方向の側面
+        for side_x, direction_x, label in [
+            (half_x, 1, "right"),
+            (-half_x, -1, "left"),
+        ]:
+            for y in (-half_y, half_y):
+                for z in (0.05, height - 0.05):
+                    ray_defs.append((
+                        f"{label}_{y}_{z}",
+                        (side_x, y, z),
+                        (direction_x, 0, 0),
+                    ))
 
-        self.shadow_queue = CollisionHandlerQueue()
-        self.shadow_traverser = CollisionTraverser()
+        # Y方向の側面
+        for side_y, direction_y, label in [
+            (half_y, 1, "front"),
+            (-half_y, -1, "back"),
+        ]:
+            for x in (-half_x, half_x):
+                for z in (0.05, height - 0.05):
+                    ray_defs.append((
+                        f"{label}_{x}_{z}",
+                        (x, side_y, z),
+                        (0, direction_y, 0),
+                    ))
 
-        self.shadow_traverser.addCollider(
-            self.shadow_ray_np,
-            self.shadow_queue,
-        )
+        # 下向き Ray：四隅 + 中央
+        for x, y, label in [
+            (-half_x, -half_y, "bottom_bl"),
+            (-half_x,  half_y, "bottom_tl"),
+            ( half_x, -half_y, "bottom_br"),
+            ( half_x,  half_y, "bottom_tr"),
+            (0, 0, "bottom_center"),
+        ]:
+            ray_defs.append((
+                label,
+                (x, y, 0.1),
+                (0, 0, -1),
+            ))
+
+        # Ray の生成と Traverser への登録
+        for name, origin, direction in ray_defs:
+            ray = CollisionRay()
+            ray.setOrigin(*origin)
+            ray.setDirection(*direction)
+
+            node = CollisionNode(f"player-{name}")
+            node.addSolid(ray)
+            node.setFromCollideMask(self.terrain_mask)
+            node.setIntoCollideMask(BitMask32.allOff())
+
+            node_path = self.render.attachNewNode(node)
+            queue = CollisionHandlerQueue()
+
+            self.ray_nodes[name] = {
+                "ray": ray,
+                "node_path": node_path,
+                "origin": origin,
+                "direction": direction,
+            }
+            self.ray_queues[name] = queue
+
+            self.ray_traverser.addCollider(node_path, queue)
+
+        # 既存の影判定コードとの互換性を維持
+        self.shadow_ray = self.ray_nodes["bottom_center"]["ray"]
+        self.shadow_ray_np = self.ray_nodes["bottom_center"]["node_path"]
+        self.shadow_queue = self.ray_queues["bottom_center"]
+        self.shadow_traverser = self.ray_traverser
 
         # プレイヤー自身にはレイが当たらないようにする
         player_cnode = self.player.collider.collision_np.node()
@@ -492,22 +558,13 @@ class Stroll(ShowBase):
         if other is None:
             return
 
-        self.normal = entry.getSurfaceNormal(self.render)
-
-        ground_distance = (self.ground_pos - self.player_pos).length()
-        near_ground = (
-            ground_distance is not None
-            and ground_distance <= 0.5
-        )
-
-        is_ground = self.normal.z > 0.9 and near_ground
-
-        if is_ground:
-            self.jump_count = 2
-            self.jump = False
-            self.player.on_collision = True
-        else:
+        if self.is_wall:
+            # 空中で壁に接触
             self.jump_count = max(self.jump_count, 1)
+            self.player.on_collision = False
+
+            # 壁キック用の法線を保存
+            self.wall_normal = self.wall_normal
 
         other.on_collision = True
 
@@ -518,9 +575,10 @@ class Stroll(ShowBase):
             return
 
         self.collision_end_detect = 0.1
-        self.player.on_collision = False
-
         other.on_collision = False
+
+        # player.on_collision はここでは直接 False にしない。
+        # 次のレイ判定で接地状態を更新する。
 
     def onCollisionRed(self, entry):
         self.playerRespown()
@@ -547,6 +605,82 @@ class Stroll(ShowBase):
             return
 
         other.on_collision = False
+
+    def getRayDistance(self, name: str) -> float | None:
+        """指定したレイの最も近い衝突位置までの距離を返す。"""
+        queue = self.ray_queues[name]
+
+        if queue.getNumEntries() == 0:
+            return None
+
+        entry = queue.getEntry(0)
+        hit_pos = entry.getSurfacePoint(self.render)
+        ray_origin = self.ray_nodes[name]["ray"].getOrigin()
+
+        return (hit_pos - ray_origin).length()
+
+
+    def classifyPlayerCollision(self) -> tuple[bool, bool, object | None]:
+        """レイの結果から、地面・壁との接触を判定する。"""
+        a = 0.1  # 水平方向のレイのしきい値
+        b = 0.75  # 下方向のレイのしきい値
+
+        horizontal_names = [
+            name for name in self.ray_nodes
+            if not name.startswith("bottom_")
+        ]
+        bottom_names = [
+            name for name in self.ray_nodes
+            if name.startswith("bottom_")
+        ]
+
+        # 水平方向のレイのうち、近くに衝突物があるもの
+        near_wall_rays = [
+            name for name in horizontal_names
+            if (
+                (distance := self.getRayDistance(name)) is not None
+                and distance <= a
+            )
+        ]
+
+        # 下向きのレイのうち、地面が近いもの
+        near_ground_rays = [
+            name for name in bottom_names
+            if (
+                (distance := self.getRayDistance(name)) is not None
+                and distance <= b
+            )
+        ]
+
+        # 中央の下向きレイが地面から遠いか
+        center_distance = self.getRayDistance("bottom_center")
+        center_far_from_ground = (
+            center_distance is None or center_distance > b
+        )
+
+        # 地面が近く、水平レイがすべて遠い場合は着地
+        is_ground = (
+            len(near_ground_rays) > 0
+            and len(near_wall_rays) == 0
+        )
+
+        # 空中で壁に接触している場合
+        is_wall = (
+            len(near_wall_rays) > 0
+            and center_far_from_ground
+        )
+
+        # 壁キック用の法線。レイの進行方向と逆向きにする
+        wall_normal = None
+
+        if is_wall:
+            ray_data = self.ray_nodes[near_wall_rays[0]]
+            dx, dy, dz = ray_data["direction"]
+
+            wall_normal = Vec3(-dx, -dy, 0)
+            wall_normal.normalize()
+
+        return is_ground, is_wall, wall_normal
 
     def getGameObject(self, node: NodePath) -> go.GameObject | None:
         while not node.isEmpty():
@@ -586,6 +720,8 @@ class Stroll(ShowBase):
             self.player.actor_node.getPhysicsObject().setVelocity(
             Vec3(0, 0, 0)
             )
+            self.jump_count  = 2
+            self.jump = False
             self.playBack()
 
     def playJump(self) -> None:
@@ -699,6 +835,26 @@ class Stroll(ShowBase):
 
         return Task.cont
 
+    def updatePlayerContactState(self) -> None:
+        is_ground, is_wall, wall_normal = self.classifyPlayerCollision()
+
+        physical = self.player.actor_node.getPhysicsObject()
+        velocity = physical.getVelocity()
+
+        self.is_ground = is_ground
+        self.is_wall = is_wall
+        self.wall_normal = wall_normal
+
+        # 地面が近く、上昇中ではない場合だけ着地を確定する
+        landed = is_ground and velocity.z <= 0
+
+        if landed:
+            self.jump_count = 2
+            self.jump = False
+            self.player.on_collision = True
+        else:
+            self.player.on_collision = False
+
     def playerMove(self, dt: float) -> None:
 
         dz = 0.0
@@ -739,12 +895,12 @@ class Stroll(ShowBase):
             move_y /= length
 
         if self.jump:
-            # 壁に接触していて、移動入力がなければ即座に停止
+            # 壁に接触していて、移動入力がなければ停止
             if (
-                not self.keys["space"]
+                self.is_wall
+                and not self.keys["space"]
                 and input_x == 0
                 and input_y == 0
-                and (self.normal.x != 0 or self.normal.y != 0 or self.normal.z == 1)
             ):
                 self.dx = 0.0
                 self.dy = 0.0
@@ -761,30 +917,49 @@ class Stroll(ShowBase):
                 self.dx = next_dx
                 self.dy = next_dy
 
-                # 壁に向かう移動成分を除去
-                if self.normal.z < 0.5:
-                    move_dot = (
-                        self.dx * self.normal.x
-                        + self.dy * self.normal.y
-                    )
+            # 壁に向かう移動成分を除去
+            if self.is_wall and self.wall_normal is not None:
+                normal = self.wall_normal
 
-                    if move_dot < 0:
-                        self.dx -= move_dot * self.normal.x
-                        self.dy -= move_dot * self.normal.y
+                move_dot = (
+                    self.dx * normal.x
+                    + self.dy * normal.y
+                )
+
+                if move_dot < 0:
+                    self.dx -= move_dot * normal.x
+                    self.dy -= move_dot * normal.y
         else:
             self.dx = move_x
             self.dy = move_y
 
-        if self.keys["space"] and self.jump_count > 0 and self.jump_cooltime <= 0:
+        if (
+            self.keys["space"]
+            and self.jump_count > 0
+            and self.jump_cooltime <= 0
+        ):
             velocity.z = 0
             self.jump_count -= 1
             self.jump_cooltime = 0.3
-            if (self.normal.x != 0 or self.normal.y != 0) and self.jump:
-                self.dx = self.normal.x * 1
-                self.dy = self.normal.y * 1
+
+            # 空中で壁に接触している場合は壁キック
+            wall_jump = (
+                self.jump
+                and not self.is_ground
+                and self.is_wall
+                and self.wall_normal is not None
+            )
+
+            if wall_jump:
+                normal = self.wall_normal
+
+                # 壁から離れる方向へ蹴る
+                self.dx = normal.x
+                self.dy = normal.y
                 dz = 0.8
             else:
-                dz = 1
+                dz = 1.0
+
             self.jump = True
 
             # ジャンプSE
@@ -822,18 +997,6 @@ class Stroll(ShowBase):
         )
 
     def playerShadow(self, dt: float) -> None:
-        player_pos = self.player.getPos()
-
-        # プレイヤーの少し上から真下へレイを飛ばす
-        self.shadow_ray.setOrigin(
-            player_pos.x,
-            player_pos.y,
-            player_pos.z + 0.1,
-        )
-
-        self.shadow_queue.clearEntries()
-        self.shadow_traverser.traverse(self.render)
-        self.shadow_queue.sortEntries()
 
         if self.shadow_queue.getNumEntries() > 0:
             # 最も近い地面との交点を取得
@@ -844,8 +1007,8 @@ class Stroll(ShowBase):
             self.player.shadow_node.setPos(
                 self.render,
                 Point3(
-                    player_pos.x,
-                    player_pos.y,
+                    self.player_pos.x,
+                    self.player_pos.y,
                     self.ground_pos.z + 0.02,
                 ),
             )
@@ -854,6 +1017,25 @@ class Stroll(ShowBase):
         else:
             # 地面がなければ影を消す
             self.player.shadow_node.hide()
+
+    def updatePlayerRays(self) -> None:
+        for data in self.ray_nodes.values():
+            ox, oy, oz = data["origin"]
+
+            data["ray"].setOrigin(
+                self.player_pos.x + ox,
+                self.player_pos.y + oy,
+                self.player_pos.z + oz,
+            )
+
+        # 21本の Ray をまとめて判定
+        for queue in self.ray_queues.values():
+            queue.clearEntries()
+
+        self.ray_traverser.traverse(self.render)
+
+        for queue in self.ray_queues.values():
+            queue.sortEntries()
     
     def cameraMove(self, dt: float):
         # マウスの移動量を取得
@@ -1003,8 +1185,6 @@ class Stroll(ShowBase):
                 self.normal.x = 0.0
                 self.normal.y = 0.0
                 self.normal.z = 0.0
-
-            self.player_pos = self.player.getPos()
                     
             if self.player_pos.z < -5:
                 self.playerRespown()
@@ -1014,8 +1194,11 @@ class Stroll(ShowBase):
 
             self.player.update(dt)
             self.terrain.update(dt)
-            self.playerMove(dt)
+            self.updatePlayerRays()
+            self.updatePlayerContactState()
             self.playerShadow(dt)
+            self.playerMove(dt)
+            self.player_pos = self.player.getPos()
             self.cameraMove(dt)
 
         return Task.cont
