@@ -35,7 +35,7 @@ player:
 
 map:
   save_span: 40
-  bulk_load: true
+  bulk_load: false
 
 system:
   debug_mode: false
