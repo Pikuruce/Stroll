@@ -26,8 +26,6 @@ class Terrain():
             self.sec25, self.sec26, self.secLast
         ]
 
-        self.auto_section = [self.sec16]
-
         self.save_count = 0
         # 生成済みのセクション数
         self.section_count = 0
@@ -294,8 +292,9 @@ class Terrain():
             background_number = (
                 section_count
                 // math.ceil(len(self.auto_section) / 4)
-                % len(self.game.background_data["backgrounds"])
+                % 3
             )
+            
 
             self.game.setBackground(background_number)
             self.game.playSave()

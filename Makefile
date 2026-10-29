@@ -1,26 +1,27 @@
 # 変数定義
 ENTRY_POINT = main.py
 OUTPUT_PARENT = build
-BUILD_DIR = $(OUTPUT_PARENT)/main.dist
 
 .PHONY: run build clean
 
-# 1. ゲームを通常起動する (uv run)
+# 通常起動
 run:
 	uv run $(ENTRY_POINT)
 
-# 2. Nuitkaでbuild/フォルダー内にビルドする
+# 単一のexeファイルを生成
 build:
 	uv run nuitka \
-		--standalone \
+		--onefile \
 		--follow-imports \
 		--output-dir=$(OUTPUT_PARENT) \
+		--output-filename=Stroll.exe \
+		--windows-icon-from-ico=icon.ico \
 		--include-data-dir=assets=assets \
 		--include-data-files=config.yaml=config.yaml \
 		$(ENTRY_POINT)
 
-# 3. ビルド成果物やキャッシュを削除してクリーンにする
+# ビルド成果物を削除
 clean:
-	@if [ -d "$(OUTPUT_PARENT)" ]; then rm -rf $(OUTPUT_PARENT); echo "Removed $(OUTPUT_PARENT) folder"; fi
-	@if [ -d "main.build" ]; then rm -rf main.build; echo "Removed main.build"; fi
-
+	@if [ -d "$(OUTPUT_PARENT)" ]; then rm -rf "$(OUTPUT_PARENT)"; echo "Removed $(OUTPUT_PARENT) folder"; fi
+	@if [ -d "main.build" ]; then rm -rf "main.build"; echo "Removed main.build"; fi
+	@if [ -d "main.onefile-build" ]; then rm -rf "main.onefile-build"; echo "Removed main.onefile-build"; fi

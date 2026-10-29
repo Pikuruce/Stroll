@@ -46,7 +46,7 @@ class Stroll(ShowBase):
         self.terrain_mask = BitMask32.bit(1)
         self.flower_mask = BitMask32.bit(2)
 
-        self.game_text = "WASD: move   SPACE: jump   ARROW or MOUSE: camera   F11: fullscreen   C: camera mode"
+        self.game_text = "WASD: move   SPACE: jump   ARROW or MOUSE: camera   F11: fullscreen   C: switch camera mode"
         self.title_text = "WASD: select   SPACE: decide"
 
         # フォント読み込み
@@ -274,7 +274,7 @@ class Stroll(ShowBase):
         self.explain_text = OnscreenText(
             text=self.title_text,
             parent=self.foreground1,
-            pos=(-0.45, -0.93),
+            pos=(-0.3, -0.93),
             scale=0.03,
             fg=(1, 1, 0, 0.5),
             font=self.game_font,
@@ -295,7 +295,7 @@ class Stroll(ShowBase):
     def setupPlayer(self) -> None:
         self.player = go.GameObject(parent=self.render, name="Furvival_Foco32", loader=self.loader, is_3d=False, use_gravity=True, physics_mgr=self.physicsMgr, gravity_force=self.gravity_force)
         self.player.setPos(0, 0, 2)
-        self.player.createCollider("box", debug=self.debug, box_size=(-0.44, -0.44, 0, 0.44, 0.44, 0.9))
+        self.player.createCollider("box", debug=self.debug, box_size=(-0.25, -0.25, 0, 0.25, 0.25, 0.9))
         self.player.setCamera(self.cam)
         self.player_pos = self.player.getPos()
 

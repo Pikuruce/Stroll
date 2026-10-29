@@ -25,7 +25,7 @@ class TitleScreen():
             parent=self.game.foreground1,
             pos=(0, -0.2),
             scale=0.07,
-            fg=(0, 1, 1, 1),
+            fg=(1, 1, 0, 1),
             font=self.game.game_font,
             align=TextNode.ACenter,
             mayChange=True,
@@ -35,7 +35,7 @@ class TitleScreen():
             parent=self.game.foreground1,
             pos=(0, -0.4),
             scale=0.07,
-            fg=(0, 0, 0, 1),
+            fg=(1, 0, 0, 1),
             font=self.game.game_font,
             align=TextNode.ACenter,
             mayChange=True,
@@ -45,7 +45,7 @@ class TitleScreen():
             parent=self.game.foreground1,
             pos=(0, -0.3),
             scale=0.07,
-            fg=(0, 0, 0, 1),
+            fg=(1, 0, 0, 1),
             font=self.game.game_font,
             align=TextNode.ACenter,
             mayChange=True,
@@ -93,13 +93,13 @@ class TitleScreen():
 
     def selectText(self, dp: int) -> None:
         self.game.playJump()
-        self.options[self.pointer].setFg((0, 0, 0, 1))
+        self.options[self.pointer].setFg((1, 0, 0, 1))
 
         self.pointer = (
             self.pointer + dp + len(self.options)
         ) % len(self.options)
 
-        self.options[self.pointer].setFg((0, 1, 1, 1))
+        self.options[self.pointer].setFg((1, 1, 0, 1))
 
     def changeContent(self) -> None:
         if self.pointer == 0:

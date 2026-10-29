@@ -21,6 +21,7 @@
 | 前後左右の移動 | `W` `A` `S` `D` |
 | ジャンプ | `Space` |
 | カメラ操作 | 矢印キー または マウス |
+| カメラ距離の可変化・固定化 | `C` |
 | 全画面表示 | `F11` |
 
 ## 使用技術
@@ -42,7 +43,7 @@
 プロジェクトのルートディレクトリで、以下のコマンドを実行してください。
 
 ```bash
-uv run main.py
+make run
 ```
 
 ### トラブルシューティング
@@ -117,7 +118,8 @@ Stroll/
     │   │   ├── collider.py
     │   │   ├── game_object.py
     │   │   ├── sprite_animator.py
-    │   │   └── terrain.py
+    │   │   ├── terrain.py
+    │   │   └── title_screen.py
     │   └── game.py
     └── utils/
         ├── app_config.py
