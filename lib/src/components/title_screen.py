@@ -58,6 +58,11 @@ class TitleScreen():
         self.pointer = 0
 
     def detectKeyDown(self) -> None:
+        """
+        update関数で呼ばれる
+
+        キーの押された瞬間だけ実行させるための関数
+        """
         if self.game.keys["up"] and not self.upkey_down:
             self.selectText(-1)
             self.upkey_down = True
@@ -92,6 +97,9 @@ class TitleScreen():
             self.game.startGame()
 
     def selectText(self, dp: int) -> None:
+        """
+        WキーとSキーで呼ばれる
+        """
         self.game.playJump()
         self.options[self.pointer].setFg((1, 0, 0, 1))
 
@@ -102,6 +110,9 @@ class TitleScreen():
         self.options[self.pointer].setFg((1, 1, 0, 1))
 
     def changeContent(self) -> None:
+        """
+        AキーとDキーで呼ばれる
+        """
         if self.pointer == 0:
             return
         elif self.pointer == 1:
@@ -112,4 +123,7 @@ class TitleScreen():
             self.options[self.pointer].setText(f"Displaying hitboxes: {"ON" if self.game.changeDebug() else "OFF"}")
 
     def update(self):
+        """
+        game.pyのupdate関数内で呼ばれる
+        """
         self.detectKeyDown()

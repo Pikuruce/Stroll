@@ -53,6 +53,9 @@ class Terrain():
             obj.node.show()
 
     def getGameObjects(self) -> list[go.GameObject]:
+        """
+        保持している全オブジェクトを取得
+        """
         return self.game_objects + self.previous_objects
 
     # 関数セット用関数
@@ -61,6 +64,9 @@ class Terrain():
         obj_list: list[go.GameObject],
         func_factory: Callable[[], Callable[[go.GameObject, float], None]],
     ) -> None:
+        """
+        オブジェクトに個別の関数をセットする
+        """
         for obj in obj_list:
             obj.setSelfFunction(func=func_factory())
 
@@ -70,6 +76,11 @@ class Terrain():
         loop: bool = False,
         speed: float = 1.0,
     ) -> Callable[[go.GameObject, float], None]:
+        """
+        オブジェクトに個別でセットするための関数を返す関数
+
+        目的地点を周回させるための関数を返す
+        """
         if not target_vector:
             raise ValueError("target_vector must not be empty")
         if speed <= 0:
@@ -155,6 +166,11 @@ class Terrain():
             target_vector: list[tuple[float, float, float]],
             loop: bool = False,
             speed: float = 1.0,):
+        """
+        オブジェクトに個別でセットするための関数を返す関数
+
+        プレイヤーとの衝突がきっかけで動き始めるオブジェクトのための関数
+        """
         f = self.moveAround(target_vector, loop, speed)
         def func(target: go.GameObject, dt: float) -> None:
             if target.on_collision or target.getPos() != target.init_pos:
@@ -169,6 +185,9 @@ class Terrain():
         point2: tuple[float, float, float], 
         step: int=2
         ) -> list[go.GameObject]:
+        """
+        まとめて設置するための関数
+        """
         obj_list = []
         for x in range(int(offset[0]) + int(point1[0]), int(offset[0]) + int(point1[0]) + int(point2[0] - point1[0]) + 1, step):
             for y in range(int(offset[1]) + int(point1[1]) + self.section_count * self.save_span, int(offset[1]) + int(point1[1]) + int(point2[1] - point1[1]) + self.section_count * self.save_span + 1, step):
@@ -182,6 +201,9 @@ class Terrain():
 
     # キャラ(花)生成関数
     def generateFlower(self, is_start: bool = False) -> go.GameObject:
+        """
+        セーブポイントとなるDance_Flower(ゲームオブジェクト)を生成
+        """
         flower = go.GameObject(
             self.game.render,
             self.game.loader,
@@ -223,6 +245,9 @@ class Terrain():
 
     # セーブ地帯追加
     def generateSaveZone(self, is_start: bool = False) -> list[go.GameObject]:
+        """
+        Dance_Flowerと地形をセットで生成
+        """
         obj = []
 
         obj.extend(
@@ -243,6 +268,9 @@ class Terrain():
 
     # セクション関数群
     def generateNextSection(self) -> None:
+        """
+        地形を生成
+        """
         if self.section_count >= len(self.auto_section):
             return
 
@@ -258,6 +286,9 @@ class Terrain():
         self.object_dict[func] = objects
 
     def advanceSection(self, next_index: int) -> None:
+        """
+        生成された地形の表示・非表示を切り替える
+        """
         # ひとつ前のセクションセットを非表示にする
         for obj in self.previous_objects:
             obj.node.hide()
@@ -283,6 +314,9 @@ class Terrain():
             obj.node.show()
 
     def flowerSEFunc(self, section_count: int):
+        """
+        Dance_Flowerに触れたときに呼ばれる関数を返す関数
+        """
         def func(target: go.GameObject, dt: float) -> None:
             if section_count >= len(self.auto_section):
                 self.game.playSave()
@@ -301,6 +335,7 @@ class Terrain():
 
         return func
 
+    # ステージ一覧
     # 直進
     def sec1(self) -> list[go.GameObject]:
         obj = []
@@ -819,5 +854,8 @@ class Terrain():
         return obj
 
     def update(self, dt: float):
+        """
+        game.pyのupdate関数で呼ばれる関数
+        """
         for obj in self.getGameObjects():
             obj.update(dt)

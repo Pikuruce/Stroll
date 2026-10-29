@@ -107,10 +107,8 @@ class Stroll(ShowBase):
         self.jump = False
         self.jump_count = 2
         self.jump_cooltime = 0.3
-        self.collision_end_detect = 0.0
         self.dx = 0.0
         self.dy = 0.0
-        self.normal = LVector3f(0, 0, 1)
         self.ground_pos = LVector3f(0, 0, 0)
         self.player_pos = LVector3f(0, 0, 0)
         self.is_ground = False
@@ -133,6 +131,9 @@ class Stroll(ShowBase):
         self.taskMgr.add(self.update, "update")
 
     def startGame(self) -> None:
+        """
+        タイトル画面からゲーム開始するときに呼ばれる関数
+        """
         self.clear = False
         self.game_time = 0.0
 
@@ -148,14 +149,23 @@ class Stroll(ShowBase):
         self.game_bgm.play()
 
     def changeBulkLoad(self) -> bool:
+        """
+        タイトル画面の設定で使う関数
+        """
         self.bulk_load = not self.bulk_load
         return self.bulk_load
 
     def changeDebug(self) -> bool:
+        """
+        タイトル画面の設定で使う関数
+        """
         self.debug = not self.debug
         return self.debug
 
     def setupScreen(self) -> None:
+        """
+        init関数で最初に呼ばれる
+        """
         properties = WindowProperties()
         properties.setFullscreen(self.full_screen)
         properties.setCursorHidden(True)
@@ -174,6 +184,9 @@ class Stroll(ShowBase):
         self.win.requestProperties(properties)
 
     def setupAudio(self) -> None:
+        """
+        init関数で最初に呼ばれる
+        """
         # BGM・SEを読み込む
         self.game_bgm = self.loader.loadSfx(path.bgm_path("marble soda.wav"))
         self.title_bgm = self.loader.loadSfx(path.bgm_path("title.wav"))
@@ -199,6 +212,9 @@ class Stroll(ShowBase):
         self.se_save.setVolume(self.master_volume * self.se_volume)
 
     def setupCamera(self) -> None:
+        """
+        init関数で最初に呼ばれる
+        """
         # カメラの障害物検出用レイ
         self.camera_ray = CollisionRay()
 
@@ -228,6 +244,9 @@ class Stroll(ShowBase):
         )
 
     def setupBackgroundEtc(self) -> None:
+        """
+        init関数で最初に呼ばれる
+        """
         self.light1 = AmbientLight("light1")
         color_data = self.background_data["backgrounds"]["0"]["color"]
         self.light1.setColor((color_data["r"], color_data["g"], color_data["b"], color_data["a"]))
@@ -286,6 +305,9 @@ class Stroll(ShowBase):
         )
 
     def setupGravity(self) -> None:
+        """
+        init関数で最初に呼ばれる
+        """
         # 物理システムの更新を有効化
         self.enableParticles()
 
@@ -295,7 +317,62 @@ class Stroll(ShowBase):
         self.gravity_force = LinearVectorForce(0, 0, self.force)
         gravity_node.addForce(self.gravity_force)
 
+    def setupKey(self) -> None:
+        """
+        init関数で最初に呼ばれる
+        """
+        self.keys = {
+            "up": False,
+            "down": False,
+            "left": False,
+            "right": False,
+            "space": False,
+            "arrow_right": False,
+            "arrow_left": False,
+            "arrow_up": False,
+            "arrow_down": False,
+            "c": False
+        }
+
+        self.respown_point = self.player_pos
+
+        self.accept("w", self.setKey, ["up", True])
+        self.accept("w-up", self.setKey, ["up", False])
+
+        self.accept("s", self.setKey, ["down", True])
+        self.accept("s-up", self.setKey, ["down", False])
+
+        self.accept("a", self.setKey, ["left", True])
+        self.accept("a-up", self.setKey, ["left", False])
+
+        self.accept("d", self.setKey, ["right", True])
+        self.accept("d-up", self.setKey, ["right", False])
+
+        self.accept("space", self.setKey, ["space", True])
+        self.accept("space-up", self.setKey, ["space", False])
+
+        self.accept("arrow_right", self.setKey, ["arrow_right", True])
+        self.accept("arrow_right-up", self.setKey, ["arrow_right", False])
+
+        self.accept("arrow_left", self.setKey, ["arrow_left", True])
+        self.accept("arrow_left-up", self.setKey, ["arrow_left", False])
+
+        self.accept("arrow_up", self.setKey, ["arrow_up", True])
+        self.accept("arrow_up-up", self.setKey, ["arrow_up", False])
+
+        self.accept("arrow_down", self.setKey, ["arrow_down", True])
+        self.accept("arrow_down-up", self.setKey, ["arrow_down", False])
+
+        self.accept("c", self.switchCameraMode)
+        self.accept("f11", self.switchFullscreen)
+        self.accept('escape',self.userExit)
+
     def setupPlayer(self) -> None:
+        """
+        startGame関数で呼ばれる
+        
+        着地判定や空中での壁衝突判定にはRayを使っているためその初期化も行う
+        """
         self.player = go.GameObject(parent=self.render, name="Furvival_Foco32", loader=self.loader, is_3d=False, use_gravity=True, physics_mgr=self.physicsMgr, gravity_force=self.gravity_force)
         self.player.setPos(0, 0, 2)
         self.player.createCollider("box", debug=self.debug, box_size=(-0.25, -0.25, 0, 0.25, 0.25, 0.9))
@@ -440,54 +517,10 @@ class Stroll(ShowBase):
             self.physics_handler,
         )
 
-    def setupKey(self) -> None:
-        self.keys = {
-            "up": False,
-            "down": False,
-            "left": False,
-            "right": False,
-            "space": False,
-            "arrow_right": False,
-            "arrow_left": False,
-            "arrow_up": False,
-            "arrow_down": False,
-            "c": False
-        }
-
-        self.respown_point = self.player_pos
-
-        self.accept("w", self.setKey, ["up", True])
-        self.accept("w-up", self.setKey, ["up", False])
-
-        self.accept("s", self.setKey, ["down", True])
-        self.accept("s-up", self.setKey, ["down", False])
-
-        self.accept("a", self.setKey, ["left", True])
-        self.accept("a-up", self.setKey, ["left", False])
-
-        self.accept("d", self.setKey, ["right", True])
-        self.accept("d-up", self.setKey, ["right", False])
-
-        self.accept("space", self.setKey, ["space", True])
-        self.accept("space-up", self.setKey, ["space", False])
-
-        self.accept("arrow_right", self.setKey, ["arrow_right", True])
-        self.accept("arrow_right-up", self.setKey, ["arrow_right", False])
-
-        self.accept("arrow_left", self.setKey, ["arrow_left", True])
-        self.accept("arrow_left-up", self.setKey, ["arrow_left", False])
-
-        self.accept("arrow_up", self.setKey, ["arrow_up", True])
-        self.accept("arrow_up-up", self.setKey, ["arrow_up", False])
-
-        self.accept("arrow_down", self.setKey, ["arrow_down", True])
-        self.accept("arrow_down-up", self.setKey, ["arrow_down", False])
-
-        self.accept("c", self.switchCameraMode)
-        self.accept("f11", self.switchFullscreen)
-        self.accept('escape',self.userExit)
-
     def setupCollision(self) -> None:
+        """
+        startGame関数で呼ばれる
+        """
         self.cTravEvent = CollisionTraverser()
         self.handler = CollisionHandlerEvent()
 
@@ -530,6 +563,9 @@ class Stroll(ShowBase):
         
 
     def switchFullscreen(self) -> None:
+        """
+        F11キーで呼ばれる関数
+        """
         next_full_screen = not self.full_screen
 
         properties = WindowProperties()
@@ -550,9 +586,15 @@ class Stroll(ShowBase):
         self.full_screen = next_full_screen
 
     def switchCameraMode(self) -> None:
+        """
+        Cキーで呼ばれる関数
+        """
         self.camera_constant_distance = not self.camera_constant_distance
 
     def onCollisionStartPlayer(self, entry):
+        """
+        プレイヤーとオブジェクトが衝突した時に呼ばれる関数
+        """
         other = self.getGameObject(entry.getIntoNodePath())
 
         if other is None:
@@ -561,29 +603,34 @@ class Stroll(ShowBase):
         if self.is_wall:
             # 空中で壁に接触
             self.jump_count = max(self.jump_count, 1)
-            self.player.on_collision = False
+            self.player.setOnCollision(False)
 
             # 壁キック用の法線を保存
             self.wall_normal = self.wall_normal
 
-        other.on_collision = True
+        other.setOnCollision(True)
 
     def onCollisionEndPlayer(self, entry):
+        """
+        プレイヤーとオブジェクトがぶつかった状態から離れた時に呼ばれる関数
+        """
         other = self.getGameObject(entry.getIntoNodePath())
 
         if other is None:
             return
 
-        self.collision_end_detect = 0.1
-        other.on_collision = False
-
-        # player.on_collision はここでは直接 False にしない。
-        # 次のレイ判定で接地状態を更新する。
+        other.setOnCollision(False)
 
     def onCollisionRed(self, entry):
+        """
+        プレイヤーとRed(ゲームオブジェクト名)が衝突した時に呼ばれる関数
+        """
         self.playerRespown()
 
     def onCollisionDanceFlower(self, entry):
+        """
+        プレイヤーとDanceFlower(ゲームオブジェクト)が衝突した時に呼ばれる関数
+        """
         other = self.getGameObject(entry.getIntoNodePath())
 
         if other is None:
@@ -596,18 +643,23 @@ class Stroll(ShowBase):
             self.flower = other
             self.flower.ignitionFunc()
 
-        other.on_collision = True
+        other.setOnCollision(True)
 
     def onCollisionEndDanceFlower(self, entry):
+        """
+        プレイヤーとDanceFlower(ゲームオブジェクト)が離れた時に呼ばれる関数
+        """
         other = self.getGameObject(entry.getIntoNodePath())
         
         if other is None:
             return
 
-        other.on_collision = False
+        other.setOnCollision(False)
 
     def getRayDistance(self, name: str) -> float | None:
-        """指定したレイの最も近い衝突位置までの距離を返す。"""
+        """
+        指定したレイの最も近い衝突位置までの距離を返す
+        """
         queue = self.ray_queues[name]
 
         if queue.getNumEntries() == 0:
@@ -621,7 +673,9 @@ class Stroll(ShowBase):
 
 
     def classifyPlayerCollision(self) -> tuple[bool, bool, object | None]:
-        """レイの結果から、地面・壁との接触を判定する。"""
+        """
+        レイの結果から、地面・壁との接触を判定する
+        """
         a = 0.1  # 水平方向のレイのしきい値
         b = 0.75  # 下方向のレイのしきい値
 
@@ -683,6 +737,11 @@ class Stroll(ShowBase):
         return is_ground, is_wall, wall_normal
 
     def getGameObject(self, node: NodePath) -> go.GameObject | None:
+        """
+        NodePathからGameObjectを返す
+
+        衝突判定で渡されるentryはNodePathでGameObjectインスタンスではないためこれを使う
+        """
         while not node.isEmpty():
             if node.hasPythonTag("game_object"):
                 return node.getPythonTag("game_object")
@@ -691,6 +750,9 @@ class Stroll(ShowBase):
         return None
 
     def loadImage(self, image_name: str, scale: tuple[float, float, float]) -> OnscreenImage:
+        """
+        背景や前景読み込み用関数
+        """
         img_path = path.image_path(image_name)
         if not img_path.exists():
             raise FileNotFoundError(f"Image file not found: {img_path}")
@@ -702,6 +764,9 @@ class Stroll(ShowBase):
         return OnscreenImage(image=texture, scale=scale)
         
     def setBackground(self, number: int) -> None:
+        """
+        背景を変更する際に使う関数
+        """
         data = self.background_data["backgrounds"][str(number)]
         texture = self.loader.loadTexture(path.image_path(data["name"]))
         self.background.setTexture(texture, 1)
@@ -716,39 +781,69 @@ class Stroll(ShowBase):
         ))
 
     def playerRespown(self) -> None:
-            self.player.setPos(self.respown_point.x, self.respown_point.y, self.respown_point.z)
-            self.player.actor_node.getPhysicsObject().setVelocity(
-            Vec3(0, 0, 0)
-            )
-            self.jump_count  = 2
-            self.jump = False
-            self.playBack()
+        """
+        落下やRedに衝突した時に呼ばれる関数
+        """
+        self.player.setPos(self.respown_point.x, self.respown_point.y, self.respown_point.z)
+        self.player.actor_node.getPhysicsObject().setVelocity(
+        Vec3(0, 0, 0)
+        )
+        self.jump_count  = 2
+        self.jump = False
+        self.playBack()
 
     def playJump(self) -> None:
+        """
+        音を流す
+        """
         self.se_jump.play()
 
     def playBack(self) -> None:
+        """
+        音を流す
+        """
         self.se_back.play()
 
     def playSave(self) -> None:
+        """
+        音を流す
+        """
         self.se_save.play()
 
     def playClear(self) -> None:
+        """
+        音を流す
+        """
         self.clear_bgm.play()
 
     def playTitle(self) -> None:
+        """
+        音を流す
+        """
         self.title_bgm.play()
 
     def stopTitle(self) -> None:
+        """
+        音を止める
+        """
         self.title_bgm.stop()
 
     def playBGM(self) -> None:
+        """
+        音を流す
+        """
         self.game_bgm.play()
     
     def stopBGM(self) -> None:
+        """
+        音を止める
+        """
         self.game_bgm.stop()
 
     def gameClear(self) -> None:
+        """
+        クリア時の処理
+        """
         self.disableMovementKeys()
         self.clear = True
 
@@ -767,6 +862,9 @@ class Stroll(ShowBase):
         )
 
     def showClearText(self) -> None:
+        """
+        クリア時にテキストを表示する
+        """
         total_seconds = int(self.game_time)
         hours, remainder = divmod(total_seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
@@ -794,6 +892,9 @@ class Stroll(ShowBase):
         )
 
     def disableMovementKeys(self) -> None:
+        """
+        クリア時に移動系キー入力を無効化する
+        """
         for key in ("w", "s", "a", "d", "space"):
             self.ignore(key)
             self.ignore(f"{key}-up")
@@ -804,6 +905,9 @@ class Stroll(ShowBase):
         self.keys["space"] = False
 
     def centerMouse(self) -> None:
+        """
+        Panda3dのスクリーン内にあるマウスポインタを画面中央に移動させる
+        """
         self.mouse_center_x = self.win.getXSize() // 2
         self.mouse_center_y = self.win.getYSize() // 2
 
@@ -815,6 +919,9 @@ class Stroll(ShowBase):
 
 
     def fadeOutBGM(self, task: Task) -> int:
+        """
+        BGMを時間とともにフェードアウトさせる関数
+        """
         dt = ClockObject.getGlobalClock().getDt()
         self.bgm_fade_elapsed += dt
 
@@ -836,6 +943,11 @@ class Stroll(ShowBase):
         return Task.cont
 
     def updatePlayerContactState(self) -> None:
+        """
+        update関数で呼ばれる
+
+        移動系処理に使う変数を更新する
+        """
         is_ground, is_wall, wall_normal = self.classifyPlayerCollision()
 
         physical = self.player.actor_node.getPhysicsObject()
@@ -851,12 +963,17 @@ class Stroll(ShowBase):
         if landed:
             self.jump_count = 2
             self.jump = False
-            self.player.on_collision = True
+            self.player.setOnCollision(True)
         else:
-            self.player.on_collision = False
+            self.player.setOnCollision(False)
 
     def playerMove(self, dt: float) -> None:
+        """
+        update関数で呼ばれる
 
+        カメラの方向に合わせた移動をさせる
+        プレイヤーのモーションを更新する
+        """
         dz = 0.0
         physical = self.player.actor_node.getPhysicsObject()
         velocity = physical.getVelocity()
@@ -997,7 +1114,11 @@ class Stroll(ShowBase):
         )
 
     def playerShadow(self, dt: float) -> None:
+        """
+        update関数で呼ばれる
 
+        プレイヤーの足元の影の位置を更新したり、表示・非表示の切り替えを行う
+        """
         if self.shadow_queue.getNumEntries() > 0:
             # 最も近い地面との交点を取得
             entry = self.shadow_queue.getEntry(0)
@@ -1019,6 +1140,11 @@ class Stroll(ShowBase):
             self.player.shadow_node.hide()
 
     def updatePlayerRays(self) -> None:
+        """
+        update関数で呼ばれる
+
+        Rayの更新
+        """
         for data in self.ray_nodes.values():
             ox, oy, oz = data["origin"]
 
@@ -1038,6 +1164,11 @@ class Stroll(ShowBase):
             queue.sortEntries()
     
     def cameraMove(self, dt: float):
+        """
+        update関数で呼ばれる
+
+        カメラの位置や角度を更新
+        """
         # マウスの移動量を取得
         mouse_dx = 0.0
         mouse_dy = 0.0
@@ -1170,6 +1301,12 @@ class Stroll(ShowBase):
 
 
     def update(self, _task: Task) -> None:
+        """
+        startGame関数で呼ばれる
+
+        更新が必要な関数を呼び出す
+        title_screen_controller terrain playerのupdate関数もここで呼ぶ
+        """
         if self.title:
             self.title_screen_controller.update()
         else:
@@ -1179,12 +1316,6 @@ class Stroll(ShowBase):
 
             if self.jump_cooltime >= 0:
                 self.jump_cooltime -= dt
-
-            self.collision_end_detect -= dt
-            if self.collision_end_detect > 0 and self.collision_end_detect - dt <= 0:
-                self.normal.x = 0.0
-                self.normal.y = 0.0
-                self.normal.z = 0.0
                     
             if self.player_pos.z < -5:
                 self.playerRespown()

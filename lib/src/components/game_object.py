@@ -78,6 +78,9 @@ class GameObject:
         box_size: tuple = (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),
         into_mask=BitMask32.bit(1),
     ) -> None:
+        """
+        コライダーを生成
+        """
         self.collider = col.Collider(
             parent=self.node,
             name=self.name,
@@ -91,6 +94,9 @@ class GameObject:
     def load3DModel(
         self, name: str
     ) -> tuple[NodePath, dict[str, Any] | None]:
+        """
+        3Dモデルをロード
+        """
 
         model_path, texture_path, json_data = path.object_path(name)
         file_path = Path(model_path.toOsSpecific())
@@ -125,6 +131,9 @@ class GameObject:
     def load2DModel(
         self, name: str
     ) -> tuple[NodePath, NodePath, dict[str, Any] | None]:
+        """
+        2Dモデルをロード
+        """
         json_data = None
 
         img_path, json_data = path.character_path(name)
@@ -183,6 +192,11 @@ class GameObject:
         return card, shadow_card, json_data
 
     def faceCamera(self) -> None:
+        """
+        2Dモデル用
+
+        セットされたカメラに方向を向ける
+        """
         if self.camera is None:
             return
 
@@ -200,43 +214,76 @@ class GameObject:
         self.model.setH(heading)
 
     def setPos(self, x, y, z, init_pos: bool = False) -> None:
+        """
+        位置セット
+        """
         self.node.setPos(x, y, z)
         if init_pos:
             self.init_pos = self.node.getPos()
 
     def getPos(self):
+        """
+        位置を返す
+        """
         return self.node.getPos()
 
     def setScale(self, x, y=None, z=None) -> None:
+        """
+        スケール変更
+        """
         if y is None:
             self.node.setScale(x)
         else:
             self.node.setScale(x, y, z)
 
     def setRotate(self, h: float, p: float = 0, r: float = 0) -> None:
+        """
+        回転を変更
+        """
         self.node.setHpr(h, p, r)
 
     def getRotate(self) -> tuple[float, float, float]:
+        """
+        回転を返す
+        """
         hpr = self.node.getHpr()
         return hpr.x, hpr.y, hpr.z
 
     def setOnCollision(self, value: bool) -> None:
+        """
+        on_collisionセット
+        """
         self.on_collision = value
 
     def setCamera(self, camera) -> None:
+        """
+        カメラをセット
+        """
         self.camera = camera
 
     def setSelfFunction(self, func) -> None:
+        """
+        自分の関数をセット
+        """
         self.self_func = func
 
     def remove(self) -> None:
+        """
+        ノードを削除
+        """
         self.node.removeNode()
 
     def ignitionFunc(self, dt: float=1.0) -> None:
+        """
+        自分の関数を呼び出す
+        """
         if self.self_func is not None:
             self.self_func(self, dt)
 
     def update(self, dt: float) -> None:
+        """
+        プレイヤーはgame.pyで、それ以外のオブジェクトはterrainのupdate関数で呼ばれる
+        """
         if hasattr(self, "sprite_animator"):
             self.sprite_animator.update(dt)
 

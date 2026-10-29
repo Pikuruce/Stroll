@@ -49,6 +49,9 @@ class SpriteAnimator:
         motion: str,
         frame_index: int,
     ) -> None:
+        """
+        スプライトシートの指定位置を表示する
+        """
         frame_data = motion_data[self.name][direction][motion][frame_index]
         frame_number, duration = frame_data
 
@@ -70,6 +73,9 @@ class SpriteAnimator:
         motion: str,
         loop: bool = True,
     ) -> bool:
+        """
+        モーションを動かすためにスプライトシートの表示位置の初期化
+        """
         # 同じモーションの再指定では再スタートしない
         if (
             self.direction == direction
@@ -92,6 +98,11 @@ class SpriteAnimator:
         return True
 
     def update(self, dt: float) -> None:
+        """
+        GameObjectのupdate関数で呼ばれる
+
+        時間経過とともにモーションを進める
+        """
         frames = motion_data[self.name][self.direction][self.motion]
 
         # 現在のフレームの表示時間
