@@ -727,7 +727,6 @@ class Stroll(ShowBase):
         # 空中で壁に接触している場合
         is_wall = (
             len(near_wall_rays) > 0
-            and center_far_from_ground
         )
 
         # 壁キック用の法線。レイの進行方向と逆向きにする
