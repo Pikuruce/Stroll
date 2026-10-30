@@ -26,6 +26,8 @@ class Terrain():
             self.sec25, self.sec26, self.secLast
         ]
 
+        self.auto_section = [self.sec4]
+
         self.save_count = 0
         # 生成済みのセクション数
         self.section_count = 0

@@ -373,9 +373,14 @@ class Stroll(ShowBase):
         
         着地判定や空中での壁衝突判定にはRayを使っているためその初期化も行う
         """
+        # プレイヤーの半分の幅・奥行きと高さ
+        half_x = 0.25
+        half_y = 0.25
+        height = 0.9
+        padding = 0.05
         self.player = go.GameObject(parent=self.render, name="Furvival_Foco32", loader=self.loader, is_3d=False, use_gravity=True, physics_mgr=self.physicsMgr, gravity_force=self.gravity_force)
         self.player.setPos(0, 0, 2)
-        self.player.createCollider("box", debug=self.debug, box_size=(-0.25, -0.25, 0, 0.25, 0.25, 0.9))
+        self.player.createCollider("box", debug=self.debug, box_size=(-half_x, -half_y, 0, half_x, half_y, height))
         self.player.setCamera(self.cam)
         self.player_pos = self.player.getPos()
 
@@ -401,21 +406,15 @@ class Stroll(ShowBase):
         self.ray_queues = {}
         self.ray_traverser = CollisionTraverser()
 
-        # プレイヤーの半分の幅・奥行きと高さ
-        half_x = 0.25
-        half_y = 0.25
-        height = 0.9
-
         # Ray の定義: (名前, 原点オフセット, 方向)
         ray_defs = []
 
         # 横向き Ray：各側面の四隅
-        # X方向の側面
         for side_x, direction_x, label in [
-            (half_x, 1, "right"),
-            (-half_x, -1, "left"),
+            (half_x - padding, 1, "right"),
+            (-half_x + padding, -1, "left"),
         ]:
-            for y in (-half_y, half_y):
+            for y in (-half_y + padding, half_y - padding):
                 for z in (0.05, height - 0.05):
                     ray_defs.append((
                         f"{label}_{y}_{z}",
@@ -425,10 +424,10 @@ class Stroll(ShowBase):
 
         # Y方向の側面
         for side_y, direction_y, label in [
-            (half_y, 1, "front"),
-            (-half_y, -1, "back"),
+            (half_y - padding, 1, "front"),
+            (-half_y + padding, -1, "back"),
         ]:
-            for x in (-half_x, half_x):
+            for x in (-half_x + padding, half_x - padding):
                 for z in (0.05, height - 0.05):
                     ray_defs.append((
                         f"{label}_{x}_{z}",
@@ -605,9 +604,6 @@ class Stroll(ShowBase):
             self.jump_count = max(self.jump_count, 1)
             self.player.setOnCollision(False)
 
-            # 壁キック用の法線を保存
-            self.wall_normal = self.wall_normal
-
         other.setOnCollision(True)
 
     def onCollisionEndPlayer(self, entry):
@@ -676,7 +672,7 @@ class Stroll(ShowBase):
         """
         レイの結果から、地面・壁との接触を判定する
         """
-        a = 0.1  # 水平方向のレイのしきい値
+        a = 0.125  # 水平方向のレイのしきい値
         b = 0.75  # 下方向のレイのしきい値
 
         horizontal_names = [
@@ -712,10 +708,20 @@ class Stroll(ShowBase):
             center_distance is None or center_distance > b
         )
 
-        # 地面が近く、水平レイがすべて遠い場合は着地
+        # 中央の下向きレイが地面から近いか
+        center_distance = self.getRayDistance("bottom_center")
+        center_near_ground = (
+            center_distance is not None and center_distance <= b
+        )
+
+        # 地面が近く、水平レイがすべて遠い場合
+        # または中央の下向きレイが基準値以下の場合は着地
         is_ground = (
-            len(near_ground_rays) > 0
-            and len(near_wall_rays) == 0
+            (
+                len(near_ground_rays) > 0
+                and len(near_wall_rays) == 0
+            )
+            or center_near_ground
         )
 
         # 空中で壁に接触している場合
