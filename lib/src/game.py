@@ -445,7 +445,7 @@ class Stroll(ShowBase):
         ]:
             ray_defs.append((
                 label,
-                (x, y, 0.1),
+                (x, y, 0),
                 (0, 0, -1),
             ))
 
@@ -600,8 +600,7 @@ class Stroll(ShowBase):
             return
 
         if self.is_wall:
-            # 空中で壁に接触
-            self.jump_count = max(self.jump_count, 1)
+            # 空中で壁に接触            
             self.player.setOnCollision(False)
 
         other.setOnCollision(True)
@@ -673,7 +672,7 @@ class Stroll(ShowBase):
         レイの結果から、地面・壁との接触を判定する
         """
         a = 0.125  # 水平方向のレイのしきい値
-        b = 0.75  # 下方向のレイのしきい値
+        b = 0.65  # 下方向のレイのしきい値
 
         horizontal_names = [
             name for name in self.ray_nodes
@@ -1026,6 +1025,8 @@ class Stroll(ShowBase):
             ):
                 self.dx = 0.0
                 self.dy = 0.0
+                self.jump_count = max(self.jump_count, 1)
+                
             else:
                 next_dx = self.dx + move_x / self.inertia
                 next_dy = self.dy + move_y / self.inertia
