@@ -10,7 +10,7 @@ audio:
 
 camera:
   rotate_speed: 90.0
-  mouse_sensitivity: 120
+  mouse_sensitivity: 20
   distance: 20.0
   height: 10.0
   pitch_speed: 60.0
